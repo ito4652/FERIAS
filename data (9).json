@@ -1,0 +1,169 @@
+{
+  "actualizado": "2026-10-09T15:44:49.178Z",
+  "ferias": [
+    {
+      "nombre": "Employers for youth",
+      "fecha": "2026-10-15",
+      "estado": "confirmada",
+      "horaInicio": "18:00",
+      "horaFin": "22:00",
+      "lugar": "",
+      "responsables": "Eduardo y José",
+      "notas": "",
+      "id": "feria-6"
+    },
+    {
+      "nombre": "FEN",
+      "fecha": "2026-10-20",
+      "estado": "confirmada",
+      "horaInicio": "09:00",
+      "horaFin": "16:35",
+      "lugar": "Diagonal Paraguay",
+      "responsables": "Eduardo y José",
+      "notas": "",
+      "id": "v3p8azke434t8mwntvrq"
+    },
+    {
+      "nombre": "FEN Comercial",
+      "fecha": "2026-10-20",
+      "estado": "confirmada",
+      "horaInicio": "09:00",
+      "horaFin": "18:00",
+      "lugar": "Diagonal Paraguay",
+      "responsables": "Javi y Roció",
+      "notas": "",
+      "id": "feria-1"
+    },
+    {
+      "id": "feria-3",
+      "nombre": "FEN Ingenieria Mecanica - Practicas",
+      "fecha": "2026-10-21",
+      "estado": "porconfirmar",
+      "horaInicio": "",
+      "horaFin": "",
+      "lugar": "",
+      "responsables": "",
+      "notas": ""
+    },
+    {
+      "nombre": "PUC Civil",
+      "fecha": "2026-10-28",
+      "estado": "confirmada",
+      "horaInicio": "09:00",
+      "horaFin": "18:00",
+      "lugar": "Av. Vicuña Mackenna 4860, Macul, Santiago",
+      "responsables": "Eduardo y José",
+      "notas": "Dura dos días: 28 y 29 de octubre.",
+      "id": "feria-4"
+    },
+    {
+      "nombre": "Entrevistas practicantes Uandes",
+      "fecha": "2026-10-28",
+      "estado": "confirmada",
+      "horaInicio": "09:00",
+      "horaFin": "13:00",
+      "lugar": "Avenida Monseñor Álvaro del Portillo 12455, Las Condes",
+      "responsables": "Javi y Flo",
+      "notas": "",
+      "id": "feria-7"
+    },
+    {
+      "nombre": "PUC Civil",
+      "fecha": "2026-10-29",
+      "estado": "confirmada",
+      "horaInicio": "09:00",
+      "horaFin": "18:00",
+      "lugar": "Av. Vicuña Mackenna 4860, Macul, Santiago",
+      "responsables": "Javi y Flo",
+      "notas": "",
+      "id": "mv14vwmnax5e49"
+    },
+    {
+      "id": "feria-2",
+      "nombre": "FEN Ing Química",
+      "fecha": "2026-11-02",
+      "estado": "porconfirmar",
+      "horaInicio": "",
+      "horaFin": "",
+      "lugar": "",
+      "responsables": "",
+      "notas": "Apertura. Mostrar ICB el 4 de noviembre."
+    },
+    {
+      "id": "feria-5",
+      "nombre": "Uandes",
+      "fecha": "2026-11-10",
+      "estado": "porconfirmar",
+      "horaInicio": "",
+      "horaFin": "",
+      "lugar": "",
+      "responsables": "",
+      "notas": ""
+    }
+  ],
+  "contactos": [
+    {
+      "id": "contacto-2",
+      "nombre": "Carlos Muñoz",
+      "cargo": "",
+      "institucion": "FEN Beauchef",
+      "correo": "carlomunoz@uchile.cl",
+      "telefono": "+56979292992",
+      "notas": ""
+    },
+    {
+      "id": "contacto-1",
+      "nombre": "Ivette Puma Oyarce",
+      "cargo": "",
+      "institucion": "FEN Comercial",
+      "correo": "ipuma@fen.uchile.cl",
+      "telefono": "+56982725669",
+      "notas": "Segundo correo: varamirez@fen.uchile.cl"
+    },
+    {
+      "id": "contacto-7",
+      "nombre": "María Soledad Urquieta",
+      "cargo": "",
+      "institucion": "USACH",
+      "correo": "maria.urquieta@usach.cl",
+      "telefono": "+56227181307",
+      "notas": ""
+    },
+    {
+      "id": "contacto-4",
+      "nombre": "Mishell Pereira Pacheco",
+      "cargo": "",
+      "institucion": "Federico Santa María",
+      "correo": "gestal@usm.cl",
+      "telefono": "32 265 4848",
+      "notas": "Segundo correo: feriaslaborales@usm.cl"
+    },
+    {
+      "id": "contacto-6",
+      "nombre": "Tamara Caceres Duarte",
+      "cargo": "",
+      "institucion": "PUC",
+      "correo": "tamara.caceres@uc.cl",
+      "telefono": "",
+      "notas": ""
+    },
+    {
+      "id": "contacto-5",
+      "nombre": "Valentina María Caroca Muñoz",
+      "cargo": "",
+      "institucion": "UANDES",
+      "correo": "vcaroca@uandes.cl",
+      "telefono": "+56226181117",
+      "notas": "Segundo correo: tcorrea@uandes.cl"
+    },
+    {
+      "id": "contacto-3",
+      "nombre": "Valentina Rodriguez",
+      "cargo": "",
+      "institucion": "FEN Beauchef - Area Ingenieria Mecanica",
+      "correo": "valerodriguez@uchile.cl",
+      "telefono": "",
+      "notas": ""
+    }
+  ]
+}
