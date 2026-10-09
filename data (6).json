@@ -1,0 +1,81 @@
+{
+  "actualizado": "2026-10-09T15:10:54.000Z",
+  "ferias": [
+    {
+      "id": "v3p8azke434t8mwntvrq",
+      "nombre": "FEN",
+      "fecha": "2026-10-14",
+      "estado": "confirmada",
+      "horaInicio": "09:00",
+      "horaFin": "16:35",
+      "lugar": "Diagonal Paraguay",
+      "responsables": "Eduardo y José",
+      "notas": ""
+    }
+  ],
+  "contactos": [
+    {
+      "id": "contacto-1",
+      "nombre": "Ivette Puma Oyarce",
+      "cargo": "",
+      "institucion": "FEN Comercial",
+      "correo": "ipuma@fen.uchile.cl",
+      "telefono": "+56982725669",
+      "notas": "Segundo correo: varamirez@fen.uchile.cl"
+    },
+    {
+      "id": "contacto-2",
+      "nombre": "Carlos Muñoz",
+      "cargo": "",
+      "institucion": "FEN Beauchef",
+      "correo": "carlomunoz@uchile.cl",
+      "telefono": "+56979292992",
+      "notas": ""
+    },
+    {
+      "id": "contacto-3",
+      "nombre": "Valentina Rodriguez",
+      "cargo": "",
+      "institucion": "FEN Beauchef - Area Ingenieria Mecanica",
+      "correo": "valerodriguez@uchile.cl",
+      "telefono": "",
+      "notas": ""
+    },
+    {
+      "id": "contacto-4",
+      "nombre": "Mishell Pereira Pacheco",
+      "cargo": "",
+      "institucion": "Federico Santa María",
+      "correo": "gestal@usm.cl",
+      "telefono": "32 265 4848",
+      "notas": "Segundo correo: feriaslaborales@usm.cl"
+    },
+    {
+      "id": "contacto-5",
+      "nombre": "Valentina María Caroca Muñoz",
+      "cargo": "",
+      "institucion": "UANDES",
+      "correo": "vcaroca@uandes.cl",
+      "telefono": "+56226181117",
+      "notas": "Segundo correo: tcorrea@uandes.cl"
+    },
+    {
+      "id": "contacto-6",
+      "nombre": "Tamara Caceres Duarte",
+      "cargo": "",
+      "institucion": "PUC",
+      "correo": "tamara.caceres@uc.cl",
+      "telefono": "",
+      "notas": ""
+    },
+    {
+      "id": "contacto-7",
+      "nombre": "María Soledad Urquieta",
+      "cargo": "",
+      "institucion": "USACH",
+      "correo": "maria.urquieta@usach.cl",
+      "telefono": "+56227181307",
+      "notas": ""
+    }
+  ]
+}
