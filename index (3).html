@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es" data-mode="view">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ferias Universitarias</title>
+<meta name="theme-color" content="#F5F8F9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B1315" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ferias">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@600;700&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <div class="brand" id="brand"></div>
+    <div>
+      <h1>Ferias universitarias</h1>
+      <p class="sub">Calendario y directorio del equipo.</p>
+    </div>
+  </header>
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div id="notice"></div>
+  <section id="panel-ferias" class="panel" role="tabpanel"></section>
+  <section id="panel-contactos" class="panel" role="tabpanel" hidden></section>
+  <p class="foot" id="foot"></p>
+</div>
+<div id="sheet-root"></div>
+<div id="toast-root" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>
