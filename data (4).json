@@ -1,0 +1,17 @@
+{
+  "actualizado": "2026-10-09T14:55:35.960Z",
+  "ferias": [
+    {
+      "nombre": "Catolica",
+      "fecha": "2026-10-14",
+      "estado": "confirmada",
+      "horaInicio": "09:00",
+      "horaFin": "16:35",
+      "lugar": "Diagonal Paraguay",
+      "responsables": "Eduardo y José",
+      "notas": "",
+      "id": "v3p8azke434t8mwntvrq"
+    }
+  ],
+  "contactos": []
+}
