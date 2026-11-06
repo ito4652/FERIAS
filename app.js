@@ -58,7 +58,7 @@ function sig(){
 function isDirty(){return ADMIN&&state.status==='ok'&&sig()!==state.published;}
 function norm(arr){return (Array.isArray(arr)?arr:[]).filter(function(r){return r&&typeof r==='object';}).map(function(r){if(!r.id)r.id=newId();return r;});}
 
-try{var saved=localStorage.getItem('ferias-tab');if(saved==='inicio'||saved==='ferias'||saved==='cumpleanos'||saved==='plataformas'||saved==='do'||saved==='equipo')state.tab=saved;else if(saved==='contactos'){state.tab='ferias';state.sub='directorio';}
+try{var saved=localStorage.getItem('ferias-tab');if(saved==='inicio'||saved==='ferias'||saved==='cumpleanos'||saved==='plataformas'||saved==='do'||saved==='equipo'||saved==='candidatos')state.tab=saved;else if(saved==='contactos'){state.tab='ferias';state.sub='directorio';}
   var ssub=localStorage.getItem('ferias-sub');if(ssub==='calendario'||ssub==='directorio'||ssub==='asistencia')state.sub=ssub;}catch(e){}
 $('brand').innerHTML=ic('cal',24);
 if(!$('panel-inicio')){
@@ -72,7 +72,7 @@ if(!$('panel-inicio')){
   pa.id='panel-'+k;pa.className='panel';pa.setAttribute('role','tabpanel');pa.hidden=true;
   $('panel-contactos').after(pa);
 });
-['plataformas','do','equipo'].forEach(function(k){
+['candidatos','plataformas','do','equipo'].forEach(function(k){
   if($('panel-'+k))return;
   var pp=document.createElement('section');
   pp.id='panel-'+k;pp.className='panel';pp.setAttribute('role','tabpanel');pp.hidden=true;
@@ -135,6 +135,7 @@ function renderTabs(){
     '<button class="tab" role="tab" data-act="tab" data-tab="inicio" aria-selected="'+(state.tab==='inicio')+'">Inicio</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="ferias" aria-selected="'+(state.tab==='ferias')+'">Ferias</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="cumpleanos" aria-selected="'+(state.tab==='cumpleanos')+'">Cumpleaños</button>'+
+    (window.CAND_CONFIG?'<button class="tab" role="tab" data-act="tab" data-tab="candidatos" aria-selected="'+(state.tab==='candidatos')+'">Candidatos<span class="n">'+(window.CandHooks?window.CandHooks.badge():'')+'</span></button>':'')+
     '<button class="tab" role="tab" data-act="tab" data-tab="do" aria-selected="'+(state.tab==='do')+'">DO</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="plataformas" aria-selected="'+(state.tab==='plataformas')+'">Plataformas</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="equipo" aria-selected="'+(state.tab==='equipo')+'">Equipo</button>';
@@ -150,6 +151,7 @@ function renderTabs(){
   $('panel-plataformas').hidden=state.tab!=='plataformas';
   $('panel-do').hidden=state.tab!=='do';
   $('panel-equipo').hidden=state.tab!=='equipo';
+  $('panel-candidatos').hidden=state.tab!=='candidatos';
   $('panel-contactos').hidden=!(state.tab==='ferias'&&state.sub==='directorio');
   $('panel-asistencia').hidden=!(state.tab==='ferias'&&state.sub==='asistencia');
 }
@@ -526,7 +528,8 @@ function renderInicio(){
     (e0?'<div class="minilist">'+miniRow({tab:'do',fecha:e0.fecha,nombre:e0.nombre,sub2:rangeTxt(e0)||e0.horaInicio||'',pill:doStatus(e0)})+'</div>':'<p class="none">No hay próximos.</p>')+'</section>';
   var plBlock='<section class="blk"><div class="blkhead"><h2>'+ic('link',18)+'Próxima renovación</h2><button class="linkbtn" data-act="goto" data-tab="plataformas">Ver todas</button></div>'+
     (p0?'<div class="minilist">'+miniRow({tab:'plataformas',fecha:p0.renovacion,nombre:p0.nombre,sub2:''})+'</div>':'<p class="none">Sin renovaciones.</p>')+'</section>';
-  el.innerHTML=banner+'<div class="twocol">'+ferBlock+cumBlock+evBlock+plBlock+'</div>'+avBlock;
+  var candBlock=window.CandHooks?window.CandHooks.inicioBlock():'';
+  el.innerHTML=banner+candBlock+'<div class="twocol">'+ferBlock+cumBlock+evBlock+plBlock+'</div>'+avBlock;
 }
 /* ---------- Plataformas de reclutamiento ---------- */
 function renewInfo(s){
@@ -978,6 +981,11 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet()
 document.addEventListener('visibilitychange',function(){
   if(!ADMIN&&document.visibilityState==='visible'&&Date.now()-state.lastLoad>30000) load();
 });
+
+/* ---------- Puente para candidatos.js ---------- */
+window.CC={state:state,ic:ic,esc:esc,toast:toast,avatar:avatar,parseDate:parseDate,todayStr:todayStr,searchBox:searchBox,keepFocus:keepFocus,
+  closeSheet:closeSheet,renderTabs:renderTabs,renderInicio:renderInicio,
+  setTab:function(t){state.tab=t;try{localStorage.setItem('ferias-tab',t);}catch(x){}renderTabs();}};
 
 /* ---------- Inicio ---------- */
 renderAll();

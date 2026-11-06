@@ -355,3 +355,39 @@ header h1{color:#fff}
 #panel-asistencia{display:flex;flex-direction:column;gap:16px}
 .agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
 .acard{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow-sm);min-width:0}
+
+/* ---------- Candidatos ---------- */
+.row.cand{grid-template-columns:minmax(0,1.3fr) minmax(0,1.1fr) minmax(0,1.2fr) auto;grid-template-areas:"cn cf cw act"}
+.row.cand.alert::before{background:var(--warn);opacity:1}
+.row.cand .notebox{grid-column:1 / -1}
+.row.cand .act{display:flex;gap:6px;align-items:center}
+.csub{color:var(--muted);font-size:13.5px;overflow-wrap:anywhere}
+.cf{grid-area:cf;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.cf .cline{font-size:13.5px;font-weight:600}
+.cf .cline .ic{color:var(--muted)}
+.ccontact{display:flex;flex-direction:column;gap:2px}
+.ccontact a{display:inline-flex;align-items:center;gap:6px;color:var(--accent-strong);text-decoration:none;overflow-wrap:anywhere;min-width:0}
+.ccontact a:hover{text-decoration:underline}
+.cw{grid-area:cw;min-width:0;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.stars{color:var(--warn);font-size:14px;letter-spacing:1px;line-height:1}
+.stars .off{color:var(--line)}
+.cfilter{width:auto;flex:0 1 220px}
+.whoami{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;color:var(--muted);font-size:13px}
+.whoami>span{flex:1 1 auto;min-width:0}
+.whoami b{color:var(--ink);font-weight:600}
+.whoami .linkbtn{display:inline-flex;align-items:center;gap:5px}
+.cvcur{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:4px}
+.cvcur a{color:var(--accent-strong);font-weight:600;overflow-wrap:anywhere}
+.ckline{display:flex;gap:10px;align-items:flex-start;font:500 14px var(--f-body)!important;cursor:pointer}
+.ckline input{width:20px;height:20px;flex:none;margin:1px 0 0;padding:0;accent-color:var(--accent)}
+.cerr{color:var(--bad)!important;font-weight:500}
+.btn[disabled]{opacity:.6;cursor:progress}
+.candblk .mini .av{flex:none}
+@media (max-width:760px){
+  .row.cand{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"cn act" "cf cf" "cw cw"}
+  .cfilter{flex:1 1 100%}
+}
+.clogin{display:flex;flex-direction:column;gap:6px;width:min(340px,100%);text-align:left;margin-top:4px}
+.clogin label{font:700 13px var(--f-body);margin-top:6px}
+.clogin .btn{margin-top:12px}
+.clogin .cerr{margin:6px 0 0;font-size:13.5px;max-width:none}
