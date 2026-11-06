@@ -1,4 +1,4 @@
-# Sección Candidatos: configuración con Supabase
+# App privada y sección Candidatos: configuración con Supabase
 
 La pestaña **Candidatos** guarda las fichas de las personas entrevistadas en ferias y sus CV en un proyecto de [Supabase](https://supabase.com) (base de datos y almacenamiento de archivos). Este repositorio es público, así que **ningún dato de candidatos pasa por GitHub**: aquí solo vive el código.
 
@@ -67,6 +67,20 @@ window.CAND_CONFIG = {
 Esta clave está hecha para ir en apps web públicas: no es una contraseña. **Nunca pegues aquí la clave `secret` ni la `service_role`**, porque esas sí saltan todas las reglas de seguridad.
 
 4. Guarda el cambio (**Commit changes**), espera un minuto y abre la app.
+
+---
+
+## App completa privada
+
+Toda la app pide iniciar sesión, y todos sus datos (ferias, equipo, cumpleaños, contactos, avisos, plataformas y DO) viven en Supabase, en la tabla `app_datos`. Ya no hay datos en GitHub.
+
+- **Cualquier cuenta `@icb.cl`** creada en Supabase puede ver y editar todo.
+- Para editar, usa **Editar datos** al pie de la app (abre `admin.html`). Los cambios quedan en tu navegador hasta que pulsas **Publicar**; en ese momento el equipo los ve.
+- Si otra persona publicó mientras editabas, la app combina ambos cambios elemento por elemento: se aplica lo que tú agregaste, editaste o borraste, y se conserva lo que hizo la otra persona. Si las dos editaron la misma feria o el mismo cumpleaños, queda la versión de quien publicó al final.
+- **Descargar respaldo** baja una copia de todo en un archivo `.json`. Guárdala en un lugar privado.
+- La app guarda una copia de los datos en cada dispositivo para poder verla sin conexión. Esa copia se borra al cerrar sesión.
+
+Para instalarlo desde cero, ejecuta `datos.sql` en el SQL Editor (además de `candidatos.sql`), entra a **Editar datos** y pulsa **Traspasar data.json** o **Elegir un respaldo**.
 
 ---
 

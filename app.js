@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-/* Modo "view": solo lectura (index.html). Modo "admin": edita en el navegador y descarga data.json (admin.html). */
+/* Modo "view": solo lectura (index.html). Modo "admin": edita en el navegador y publica en Supabase (admin.html). */
 var ADMIN=document.documentElement.getAttribute('data-mode')==='admin';
 var DRAFT_KEY='ferias-borrador-v1';
 var state={sub:'calendario',ferias:[],contactos:[],cumpleanos:[],avisos:[],plataformas:[],eventosdo:[],equipo:[],pq:'',dq:'',eq:'',status:'loading',published:'',updated:'',tab:'inicio',q:'',estado:'todos',cq:'',cuq:'',
@@ -85,46 +85,145 @@ if(!$('panel-cumpleanos')){
 }
 if(!$('subtabs')){var st=document.createElement('div');st.id='subtabs';st.className='subtabs';st.setAttribute('role','tablist');$('tabs').after(st);}
 
-/* ---------- Carga de datos ---------- */
+/* ---------- Carga de datos ----------
+   Los datos viven en Supabase (tabla app_datos, fila "principal"), no en GitHub: el repositorio es público.
+   Se guarda una copia en este navegador para poder ver la app sin conexión; se borra al cerrar sesión. */
+var CACHE_KEY='datos-cache';
+function applyData(d){
+  d=d||{};
+  state.ferias=norm(d.ferias);state.contactos=norm(d.contactos);state.cumpleanos=norm(d.cumpleanos);state.avisos=norm(d.avisos);state.plataformas=norm(d.plataformas);state.eventosdo=norm(d.eventosdo);state.equipo=norm(d.equipo);
+}
+var KEYS=['ferias','contactos','cumpleanos','avisos','plataformas','eventosdo','equipo'];
+function clone(o){return JSON.parse(JSON.stringify(o));}
+function pick(d){var o={};KEYS.forEach(function(k){o[k]=clone((d&&d[k])||[]);});return o;}
+function snap(){return pick(state);}
+/* Junta los cambios de este navegador (respecto de "base") con lo que otra persona publicó ("remote"),
+   elemento por elemento: lo que agregaste o editaste se aplica, lo que borraste se borra, y lo demás queda como lo dejó la otra persona. */
+function mergeData(remote,base,local){
+  var out={};
+  KEYS.forEach(function(k){
+    var R=clone((remote&&remote[k])||[]),B={},L={};
+    ((base&&base[k])||[]).forEach(function(x){if(x&&x.id)B[x.id]=JSON.stringify(canon(x));});
+    ((local&&local[k])||[]).forEach(function(x){if(x&&x.id)L[x.id]=x;});
+    R=R.filter(function(x){return !(x&&B[x.id]&&!L[x.id]);});
+    Object.keys(L).forEach(function(id){
+      if(B[id]===JSON.stringify(canon(L[id])))return;
+      var i=-1;for(var j=0;j<R.length;j++)if(R[j]&&R[j].id===id){i=j;break;}
+      if(i>-1)R[i]=L[id];else R.push(L[id]);
+    });
+    out[k]=R;
+  });
+  return out;
+}
+function saveCache(contenido,ts){try{localStorage.setItem(CACHE_KEY,JSON.stringify({contenido:contenido,actualizado:ts}));}catch(e){}}
+function dbMsg(e){
+  var m=String((e&&e.message)||''),c=e&&e.code;
+  if(c==='PGRST205'||c==='42P01'||/does not exist|schema cache/i.test(m))return 'Falta preparar la base de datos: ejecuta datos.sql en Supabase.';
+  if(c==='42501'||/row-level security|permission denied/i.test(m))return 'Tu cuenta no tiene permiso para esta acción.';
+  return 'No se pudo conectar con la base de datos.';
+}
 async function load(){
   state.lastLoad=Date.now();
+  if(!window.SB||!window.Sesion||!Sesion.user){state.status='loading';renderAll();return;}
   try{
-    var r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});
-    if(!r.ok) throw new Error('http '+r.status);
-    var d=await r.json();
-    state.ferias=norm(d.ferias);state.contactos=norm(d.contactos);state.cumpleanos=norm(d.cumpleanos);state.avisos=norm(d.avisos);state.plataformas=norm(d.plataformas);state.eventosdo=norm(d.eventosdo);state.equipo=norm(d.equipo);state.updated=d.actualizado||'';
-    state.published=sig();
-    var dropped=false;
-    if(ADMIN){
-      try{
-        var raw=localStorage.getItem(DRAFT_KEY);
-        if(raw){
-          var dr=JSON.parse(raw);
-          if(dr.base===state.published){
-            /* El borrador parte de los datos publicados actuales: se conserva. */
-            state.ferias=norm(dr.ferias);state.contactos=norm(dr.contactos);state.cumpleanos=norm(dr.cumpleanos);state.avisos=norm(dr.avisos);state.plataformas=norm(dr.plataformas);state.eventosdo=norm(dr.eventosdo);state.equipo=norm(dr.equipo);
-            if(sig()===state.published) localStorage.removeItem(DRAFT_KEY);
-          }else{
-            /* Los datos publicados cambiaron desde que se hizo el borrador: se usan los publicados. */
-            localStorage.removeItem(DRAFT_KEY);dropped=true;
-          }
-        }
-      }catch(e){}
-    }
-    state.status='ok';
-    renderAll();
-    if(dropped) toast('Se cargaron los datos publicados más recientes');
-    return;
+    var r=await SB.from('app_datos').select('contenido,actualizado').eq('id','principal').maybeSingle();
+    if(r.error)throw r.error;
+    if(!r.data){state.status='nodata';state.remoteTs='';renderAll();return;}
+    applyData(r.data.contenido);state.baseData=snap();
+    state.updated=state.remoteTs=r.data.actualizado;state.offline=false;
+    saveCache(r.data.contenido,r.data.actualizado);
   }catch(e){
-    if(state.status!=='ok') state.status='error';
+    var cached=null;try{cached=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');}catch(x){}
+    if(!cached||!cached.contenido){state.status='error';state.errMsg=dbMsg(e);renderAll();return;}
+    applyData(cached.contenido);state.baseData=snap();state.updated=cached.actualizado;state.remoteTs=cached.actualizado;state.offline=true;
   }
+  state.published=sig();
+  var dropped=false,merged=false;
+  if(ADMIN){
+    try{
+      var raw=localStorage.getItem(DRAFT_KEY);
+      if(raw){
+        var dr=JSON.parse(raw);
+        if(dr.base===state.published){
+          /* El borrador parte de los datos publicados actuales: se conserva. */
+          applyData(dr);
+          if(sig()===state.published) localStorage.removeItem(DRAFT_KEY);
+        }else if(dr.baseData){
+          /* Alguien publicó después de hacer el borrador: se combinan ambos. */
+          applyData(mergeData(state.baseData,dr.baseData,dr));merged=true;
+          if(sig()===state.published) localStorage.removeItem(DRAFT_KEY);else persist();
+        }else{
+          localStorage.removeItem(DRAFT_KEY);dropped=true;
+        }
+      }
+    }catch(e){}
+  }
+  state.status='ok';
   renderAll();
+  if(dropped) toast('Se cargaron los datos publicados más recientes');
+  if(merged) toast('Otra persona publicó cambios: se combinaron con los tuyos. Revisa y pulsa Publicar.');
+}
+function buildOut(){
+  return {actualizado:new Date().toISOString(),ferias:state.ferias.slice().sort(cmpFeria),cumpleanos:state.cumpleanos.slice().sort(cmpFeria),avisos:state.avisos.slice().sort(byId),plataformas:state.plataformas.slice().sort(byName),equipo:state.equipo.slice().sort(byCargo),eventosdo:state.eventosdo.slice().sort(cmpFeria),contactos:state.contactos.slice().sort(byName)};
+}
+async function publish(){
+  if(!ADMIN||state.publishing||!isDirty())return;
+  if(state.offline){toast('Sin conexión: no se puede publicar ahora.');return;}
+  state.publishing=true;renderNotice();
+  var combined=false;
+  try{
+    for(var intento=0;intento<3;intento++){
+      var contenido=buildOut();
+      var q=await SB.from('app_datos').update({contenido:contenido,actualizado_por:Sesion.email}).eq('id','principal').eq('actualizado',state.remoteTs).select('actualizado');
+      if(q.error)throw q.error;
+      if(q.data&&q.data.length){
+        state.updated=state.remoteTs=q.data[0].actualizado;state.baseData=snap();state.published=sig();
+        saveCache(contenido,state.remoteTs);
+        try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
+        state.publishing=false;renderAll();
+        toast(combined?'Publicado. Otra persona había publicado al mismo tiempo: se combinaron ambos cambios.':'Publicado. El equipo ya ve los cambios.');
+        return;
+      }
+      /* Otra persona publicó mientras editabas: se trae su versión y se le aplican tus cambios. */
+      var r=await SB.from('app_datos').select('contenido,actualizado').eq('id','principal').maybeSingle();
+      if(r.error)throw r.error;
+      if(!r.data)break;
+      applyData(mergeData(r.data.contenido,state.baseData,snap()));
+      state.baseData=pick(r.data.contenido);state.remoteTs=r.data.actualizado;combined=true;
+    }
+    state.publishing=false;renderAll();toast('No se pudo publicar porque otras personas están publicando a la vez. Intenta de nuevo en un momento.');
+  }catch(e){
+    state.publishing=false;renderNotice();
+    toast(/permiso/.test(dbMsg(e))?'Tu cuenta no puede publicar cambios.':dbMsg(e));
+  }
+}
+/* Traspaso inicial: copia el data.json que todavía está en el repositorio (o un respaldo) a Supabase. */
+async function migrate(contenido){
+  if(!ADMIN||state.publishing)return;
+  state.publishing=true;renderAll();
+  try{
+    if(!contenido){
+      var r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});
+      if(!r.ok)throw {nofile:true};
+      contenido=await r.json();
+    }
+    if(!contenido||!Array.isArray(contenido.ferias))throw {badfile:true};
+    KEYS.forEach(function(k){contenido[k]=norm(contenido[k]);});
+    var q=await SB.from('app_datos').insert({id:'principal',contenido:contenido,actualizado_por:Sesion.email});
+    if(q.error)throw q.error;
+    state.publishing=false;toast('Datos traspasados a la base de datos');load();
+  }catch(e){
+    state.publishing=false;state.migErr=e&&e.nofile?'No se encontró data.json en el repositorio. Elige un respaldo de data.json desde tu computador.':
+      e&&e.badfile?'Ese archivo no parece un data.json de esta app.':
+      /permiso/.test(dbMsg(e))?'Tu cuenta no es administradora: pide que te agreguen en la tabla app_admins.':dbMsg(e);
+    renderAll();
+  }
 }
 function persist(){
   if(!ADMIN)return;
   try{
     if(sig()===state.published) localStorage.removeItem(DRAFT_KEY);
-    else localStorage.setItem(DRAFT_KEY,JSON.stringify({base:state.published,ferias:state.ferias,contactos:state.contactos,cumpleanos:state.cumpleanos,avisos:state.avisos,plataformas:state.plataformas,eventosdo:state.eventosdo,equipo:state.equipo}));
+    else localStorage.setItem(DRAFT_KEY,JSON.stringify({base:state.published,baseData:state.baseData,ferias:state.ferias,contactos:state.contactos,cumpleanos:state.cumpleanos,avisos:state.avisos,plataformas:state.plataformas,eventosdo:state.eventosdo,equipo:state.equipo}));
   }catch(e){}
 }
 
@@ -157,13 +256,13 @@ function renderTabs(){
 }
 function renderNotice(){
   var h='';
-  if(state.status==='error') h='<div class="notice">No se pudieron cargar los datos. Revisa tu conexión e intenta de nuevo.</div>';
+  if(state.offline&&state.status==='ok') h='<div class="notice">Sin conexión: estás viendo la última copia guardada en este dispositivo.</div>';
   else if(ADMIN&&state.status==='ok'){
     var dirty=isDirty();
-    h='<div class="adminbar"><div class="txt"><b>Modo administrador.</b> Los cambios se guardan solo en este navegador. Para publicarlos, descarga data.json y súbelo a GitHub.</div>'+
+    h='<div class="adminbar"><div class="txt"><b>Modo edición.</b> Tus cambios quedan en este navegador hasta que pulses <b>Publicar</b>; ahí el equipo los ve al instante. <button class="linkbtn" data-act="download">Descargar respaldo</button></div>'+
       '<div class="adm-actions">'+(dirty?'<span class="pill warn">Cambios sin publicar</span>':'')+
       (dirty?'<button class="btn" data-act="discard">'+(state.discardArmed?'¿Seguro? Descartar':'Descartar cambios')+'</button>':'')+
-      '<button class="btn primary" data-act="download">'+ic('down',17)+'Descargar data.json</button></div></div>';
+      '<button class="btn primary" data-act="publish"'+(dirty&&!state.publishing?'':' disabled')+'>'+ic('check',17)+(state.publishing?'Publicando…':'Publicar')+'</button></div></div>';
   }
   $('notice').innerHTML=h;
 }
@@ -306,7 +405,15 @@ function keepFocus(id,html,el){
 }
 function stateBlock(el){
   if(state.status==='loading'){el.innerHTML='<p class="none">Cargando…</p>';return true;}
-  if(state.status==='error'){el.innerHTML='<div class="empty"><div class="badge">'+ic('cal',24)+'</div><h2>Sin conexión</h2><p>No se pudo cargar el calendario. Vuelve a abrir la app cuando tengas internet.</p></div>';return true;}
+  if(state.status==='error'){el.innerHTML='<div class="empty"><div class="badge">'+ic('cal',24)+'</div><h2>No se pudieron cargar los datos</h2><p>'+esc(state.errMsg||'Revisa tu conexión y vuelve a abrir la app.')+'</p></div>';return true;}
+  if(state.status==='nodata'){
+    el.innerHTML=ADMIN?'<div class="empty"><div class="badge">'+ic('down',24)+'</div><h2>Traspasa los datos a la base privada</h2><p>Los datos de la app todavía no están en Supabase. Este paso copia el data.json actual una sola vez; después ya puedes borrarlo de GitHub.</p>'+
+      (state.migErr?'<p class="cerr">'+esc(state.migErr)+'</p>':'')+
+      '<div class="adm-actions"><button class="btn primary" data-act="migrate"'+(state.publishing?' disabled':'')+'>'+(state.publishing?'Traspasando…':'Traspasar data.json')+'</button>'+
+      '<button class="btn" data-act="migrate-file">Elegir un respaldo</button></div></div>':
+      '<div class="empty"><div class="badge">'+ic('cal',24)+'</div><h2>Aún no hay datos</h2><p>El administrador todavía no ha cargado la información. Vuelve a intentarlo más tarde.</p></div>';
+    return true;
+  }
   return false;
 }
 function renderFerias(){
@@ -333,7 +440,7 @@ function renderFerias(){
     '<div class="fchips">'+chipDefs.map(function(c){return '<button class="fchip" data-act="estado" data-v="'+c[0]+'" aria-pressed="'+(state.estado===c[0])+'">'+c[1]+'</button>';}).join('')+'</div>';
   var body='';
   if(!all.length){
-    body=emptyBlock('cal',ADMIN?'Aún no hay ferias':'Aún no hay ferias publicadas',ADMIN?'Agrega la primera con fecha, hora y responsables. Luego descarga data.json para publicarla.':'Cuando se agreguen, las verás aquí.','<button class="btn primary" data-act="new" data-kind="feria">'+ic('plus',17)+'Agregar la primera feria</button>');
+    body=emptyBlock('cal',ADMIN?'Aún no hay ferias':'Aún no hay ferias publicadas',ADMIN?'Agrega la primera con fecha, hora y responsables. Luego pulsa Publicar.':'Cuando se agreguen, las verás aquí.','<button class="btn primary" data-act="new" data-kind="feria">'+ic('plus',17)+'Agregar la primera feria</button>');
   }else if(!list.length){
     body='<p class="none">Ninguna feria coincide con la búsqueda.</p>';
   }else{
@@ -461,7 +568,7 @@ function renderCumples(){
     (ADMIN?'<button class="btn primary" data-act="new" data-kind="cumple">'+ic('plus',17)+'Nuevo cumpleaños</button>':'')+'</div>';
   var body='';
   if(!all.length){
-    body=emptyBlock('cake',ADMIN?'Aún no hay cumpleaños':'Aún no hay cumpleaños registrados',ADMIN?'Agrega el primero con fecha, responsable, presupuesto y compras. Luego descarga data.json para publicarlo.':'Cuando se agreguen, los verás aquí.','<button class="btn primary" data-act="new" data-kind="cumple">'+ic('plus',17)+'Agregar el primer cumpleaños</button>');
+    body=emptyBlock('cake',ADMIN?'Aún no hay cumpleaños':'Aún no hay cumpleaños registrados',ADMIN?'Agrega el primero con fecha, responsable, presupuesto y compras. Luego pulsa Publicar.':'Cuando se agreguen, los verás aquí.','<button class="btn primary" data-act="new" data-kind="cumple">'+ic('plus',17)+'Agregar el primer cumpleaños</button>');
   }else if(!list.length){
     body='<p class="none">Ningún cumpleaños coincide con la búsqueda.</p>';
   }else{
@@ -728,9 +835,15 @@ function renderEquipo(){
 }
 function renderFoot(){
   var f=$('foot');if(!f)return;
-  if(ADMIN||state.status!=='ok'||!state.updated){f.textContent='';return;}
-  var d=new Date(state.updated);
-  f.textContent=isNaN(d.getTime())?'':'Datos actualizados el '+fullFmt.format(d);
+  var h='';
+  if(!ADMIN&&state.status==='ok'&&state.updated){var d=new Date(state.updated);if(!isNaN(d.getTime()))h+='<span>Datos actualizados el '+esc(fullFmt.format(d))+'</span>';}
+  if(window.Sesion&&Sesion.user&&state.status==='ok')h+=ADMIN?'<a class="linkbtn" href="./">Salir del modo edición</a>':'<a class="linkbtn" href="admin.html">Editar datos</a>';
+  if(window.Sesion&&Sesion.user){
+    var em=lower(Sesion.email),p=state.equipo.filter(function(x){return lower(x.correo)===em;})[0];
+    h+='<span class="footses">Conectado como <b>'+esc(p?p.nombre:Sesion.email)+'</b>'+
+      '<button class="linkbtn" data-act="c-pass">Cambiar contraseña</button><button class="linkbtn" data-act="c-logout">Cerrar sesión</button></span>';
+  }
+  f.innerHTML=h;
 }
 function renderAll(){renderTabs();renderNotice();renderInicio();renderFerias();renderCumples();renderPlataformas();renderDO();renderEquipo();renderAsistencia();renderContactos();renderFoot();}
 
@@ -792,7 +905,7 @@ function openSheet(kind,id){
       fld('renovacion','Fecha de renovación','date',rec.renovacion)+
       fld('costo','Costo (CLP, opcional)','number',(rec.costo===''||rec.costo==null)?'':rec.costo,{attrs:'inputmode="numeric" min="0" step="1000"'})+
       fld('responsable','Responsable','text',rec.responsable,{full:true})+
-      fld('notas','Notas','textarea',rec.notas,{full:true,hint:'No guardes usuarios ni contraseñas aquí: el repositorio es público.'});
+      fld('notas','Notas','textarea',rec.notas,{full:true,hint:'No guardes usuarios ni contraseñas aquí: todo el equipo puede leer estas notas.'});
   }else if(kind==='evdo'){
     f=fld('nombre','Evento','text',rec.nombre,{full:true,ph:'Ej: Taller de liderazgo'})+
       fld('fecha','Fecha de inicio','date',rec.fecha)+
@@ -890,7 +1003,7 @@ function save(){
     data.id=state.edit.id;
     for(var i=0;i<arr.length;i++){if(arr[i].id===data.id){arr[i]=data;break;}}
   }else{data.id=newId();arr.push(data);}
-  persist();closeSheet();renderAll();toast('Guardado en este navegador');
+  persist();closeSheet();renderAll();toast('Guardado. Pulsa Publicar para que el equipo lo vea.');
 }
 function remove(){
   if(!ADMIN||!state.edit||!state.edit.id)return;
@@ -907,12 +1020,11 @@ function remove(){
   persist();closeSheet();renderAll();toast('Eliminado');
 }
 function download(){
-  var out={actualizado:new Date().toISOString(),ferias:state.ferias.slice().sort(cmpFeria),cumpleanos:state.cumpleanos.slice().sort(cmpFeria),avisos:state.avisos.slice().sort(byId),plataformas:state.plataformas.slice().sort(byName),equipo:state.equipo.slice().sort(byCargo),eventosdo:state.eventosdo.slice().sort(cmpFeria),contactos:state.contactos.slice().sort(byName)};
-  var blob=new Blob([JSON.stringify(out,null,2)+'\n'],{type:'application/json'});
+  var blob=new Blob([JSON.stringify(buildOut(),null,2)+'\n'],{type:'application/json'});
   var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');a.href=url;a.download='data.json';document.body.appendChild(a);a.click();a.remove();
+  var a=document.createElement('a');a.href=url;a.download='respaldo-datos-'+todayStr()+'.json';document.body.appendChild(a);a.click();a.remove();
   setTimeout(function(){URL.revokeObjectURL(url);},2000);
-  toast('Descargado. Súbelo a GitHub para publicar.');
+  toast('Respaldo descargado. Guárdalo en un lugar privado.');
 }
 function discard(){
   if(!state.discardArmed){state.discardArmed=true;renderNotice();return;}
@@ -953,6 +1065,9 @@ document.addEventListener('click',function(e){
   if(act==='itadd'){if(state.edit&&state.edit.items){state.edit.items.push({id:newId(),nombre:'',costo:'',comprado:false});var ed=$('items-editor');if(ed){ed.innerHTML=itemsHtml();var ins=ed.querySelectorAll('input[data-it="n"]');if(ins.length)ins[ins.length-1].focus();}}return;}
   if(act==='itdel'){if(state.edit&&state.edit.items){state.edit.items.splice(+b.getAttribute('data-i'),1);var ed2=$('items-editor');if(ed2)ed2.innerHTML=itemsHtml();}return;}
   if(act==='download'){download();return;}
+  if(act==='publish'){publish();return;}
+  if(act==='migrate'){migrate(null);return;}
+  if(act==='migrate-file'){var mf=$('mig-file');if(mf){mf.value='';mf.click();}return;}
   if(act==='discard'){discard();return;}
 });
 document.addEventListener('submit',function(e){e.preventDefault();save();});
@@ -974,12 +1089,13 @@ document.addEventListener('input',function(e){
   else if(e.target.id==='q-contactos'){state.cq=e.target.value;renderContactos();}
 });
 document.addEventListener('change',function(e){
+  if(e.target&&e.target.id==='mig-file'){var fl=e.target.files&&e.target.files[0];if(fl)fl.text().then(function(t){var d=null;try{d=JSON.parse(t);}catch(x){}if(d)migrate(d);else{state.migErr='Ese archivo no parece un data.json de esta app.';renderAll();}});return;}
   if(e.target&&e.target.id==='f-fotofile'){loadPhoto(e.target.files&&e.target.files[0]);return;}
   syncItem(e.target);
 });
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet();});
 document.addEventListener('visibilitychange',function(){
-  if(!ADMIN&&document.visibilityState==='visible'&&Date.now()-state.lastLoad>30000) load();
+  if(!ADMIN&&window.Sesion&&Sesion.user&&document.visibilityState==='visible'&&Date.now()-state.lastLoad>30000) load();
 });
 
 /* ---------- Puente para candidatos.js ---------- */
@@ -988,8 +1104,14 @@ window.CC={state:state,ic:ic,esc:esc,toast:toast,avatar:avatar,parseDate:parseDa
   setTab:function(t){state.tab=t;try{localStorage.setItem('ferias-tab',t);}catch(x){}renderTabs();}};
 
 /* ---------- Inicio ---------- */
+var mig=document.createElement('input');mig.type='file';mig.id='mig-file';mig.accept='.json,application/json';mig.hidden=true;document.body.appendChild(mig);
 renderAll();
-load();
+if(window.Sesion){
+  Sesion.on(function(u){
+    if(u){load();return;}
+    applyData({});state.status='loading';state.published='';state.updated='';state.remoteTs='';renderAll();
+  });
+}else{state.status='error';state.errMsg='No se pudo cargar la conexión con la base de datos.';renderAll();}
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
 }

@@ -406,3 +406,19 @@ header h1{color:#fff}
 .itable input[type=month]{padding:6px 8px;font-size:13px;width:150px}
 .isub{color:var(--muted);font-size:12px;margin-top:2px}
 .isum{margin:0;font:600 13.5px var(--f-body)}
+
+/* ---------- Ingreso a la app ---------- */
+html.locked #app,html.locked #sheet-root{display:none}
+.gate{display:none}
+html.locked .gate{display:block}
+.gate-card{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.gate-brand{display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;border-radius:24px;padding:22px 24px;background:linear-gradient(135deg,#06695C,#0B8F7E);color:#fff;box-shadow:var(--shadow)}
+.gate-brand h1{color:#fff;font-size:24px}
+.gate-brand .sub{color:rgba(255,255,255,.85)}
+.gate-brand .brand{flex:none}
+.gate-box{align-items:center}
+.gate-box .clogin{margin-inline:auto}
+.gate-wait{margin:0;color:var(--muted)}
+.foot{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 10px}
+.footses{display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 12px}
+.footses b{color:var(--ink);font-weight:600}

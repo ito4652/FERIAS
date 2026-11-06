@@ -1,6 +1,6 @@
-/* Primero la red, con copia guardada como respaldo: los datos siempre se ven al día y la app abre sin conexión. */
-var CACHE='ferias-v4';
-var ASSETS=['./','index.html','app.css','app.js','data.json','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png','candidatos.js','candidatos-config.js','supabase.min.js'];
+/* Primero la red, con copia guardada como respaldo: la app abre sin conexión. Los datos vienen de Supabase y no pasan por aquí. */
+var CACHE='ferias-v5';
+var ASSETS=['./','index.html','app.css','app.js','sesion.js','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png','candidatos.js','candidatos-config.js','supabase.min.js'];
 
 self.addEventListener('install',function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){return c.addAll(ASSETS);}).then(function(){return self.skipWaiting();}));

@@ -1,6 +1,6 @@
 /* Candidatos de ferias: fichas en una base de datos de Supabase y CV en un almacenamiento privado.
    Nada de esto pasa por GitHub: el repositorio es público, los datos de candidatos no.
-   Requiere: supabase.min.js, candidatos-config.js y app.js (que expone window.CC). */
+   Requiere: supabase.min.js, candidatos-config.js, sesion.js (conexión e ingreso) y app.js (que expone window.CC). */
 (function(){
 'use strict';
 var CC=window.CC;if(!CC)return;
@@ -10,7 +10,7 @@ function $(id){return document.getElementById(id);}
 function pad(n){return n<10?'0'+n:''+n;}
 function lower(s){return String(s||'').toLowerCase();}
 var ALERT_DAYS=+CFG.alertDays||30;
-var configured=!!(CFG.supabaseUrl&&CFG.supabaseKey);
+var configured=!!window.SB;
 var BUCKET='cvs',TABLE='candidatos',MAX_MB=25;
 
 var TIPOS=['Práctica','Trabajo'];
@@ -32,7 +32,7 @@ var I={
 };
 function ci(name,size){size=size||18;return '<svg class="ic" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+I[name]+'</svg>';}
 
-var S={status:configured?'starting':'unconfigured',user:null,items:[],error:'',loginErr:'',
+var S={status:configured?'starting':'unconfigured',user:null,items:[],error:'',
   q:'',filtro:'todos',feria:'',edit:null,file:null,busy:false,delArmed:false,lastLoad:0};
 
 /* ---------- Fechas de búsqueda (AAAA-MM) ---------- */
@@ -65,17 +65,12 @@ function errMsg(e){
 }
 function chk(r){if(r&&r.error)throw r.error;return r?r.data:null;}
 function init(){
-  if(!configured){repaint();return;}
-  if(!window.supabase||!window.supabase.createClient){S.status='error';S.error='No se pudo cargar la conexión con la base de datos. Revisa tu conexión y vuelve a abrir la app.';repaint();return;}
-  sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'cand-auth'}});
-  sb.auth.onAuthStateChange(function(ev,session){
-    /* Se sale del callback antes de llamar a Supabase, como recomienda su documentación. */
-    setTimeout(function(){
-      var u=session&&session.user||null,was=S.user&&S.user.id;
-      S.user=u;
-      if(!u){S.items=[];S.status='idle';repaint();return;}
-      if(ev==='INITIAL_SESSION'||ev==='SIGNED_IN'&&was!==u.id)loadAll();
-    },0);
+  if(!configured||!window.Sesion){S.status=configured?'error':'unconfigured';repaint();return;}
+  sb=window.SB;
+  Sesion.on(function(u){
+    S.user=u;
+    if(!u){S.items=[];S.status='idle';repaint();return;}
+    loadAll();
   });
 }
 function fromRow(r){
@@ -99,22 +94,6 @@ async function loadAll(){
   }catch(e){S.status='error';S.error=errMsg(e);}
   repaint();
 }
-async function login(){
-  var em=($('cl-email')||{}).value||'',pw=($('cl-pass')||{}).value||'';
-  em=em.trim().toLowerCase();
-  if(!em||!pw){S.loginErr='Escribe tu correo y tu contraseña.';render();return;}
-  S.busy=true;S.loginErr='';render();
-  try{
-    var r=await sb.auth.signInWithPassword({email:em,password:pw});
-    if(r.error)throw r.error;
-    S.busy=false;
-  }catch(e){
-    S.busy=false;
-    S.loginErr=/invalid login|credentials/i.test(e.message||'')?'Correo o contraseña incorrectos. Si olvidaste la contraseña, pide al administrador que la cambie.':errMsg(e);
-    render();var p=$('cl-pass');if(p){p.value='';p.focus();}
-  }
-}
-function logout(){if(sb)sb.auth.signOut();}
 function myName(){
   var em=lower(S.user&&S.user.email);
   var p=CC.state.equipo.filter(function(x){return lower(x.correo)===em;})[0];
@@ -167,23 +146,12 @@ function row(c){
 function gate(icon,title,text,extra){
   return '<div class="empty"><div class="badge">'+icon+'</div><h2>'+title+'</h2><p>'+text+'</p>'+(extra||'')+'</div>';
 }
-function loginForm(){
-  return gate(ci('lock',24),'Inicia sesión para ver los candidatos','Usa el correo y la contraseña que te dio el administrador. Solo el equipo puede ver los datos y CV de los postulantes.',
-    '<form class="clogin" id="clogin" novalidate>'+
-      '<label for="cl-email">Correo</label><input id="cl-email" type="email" autocomplete="username" placeholder="nombre@icb.cl" value="'+esc(S.lastEmail||'')+'">'+
-      '<label for="cl-pass">Contraseña</label><input id="cl-pass" type="password" autocomplete="current-password">'+
-      (S.loginErr?'<p class="cerr" role="alert">'+esc(S.loginErr)+'</p>':'')+
-      '<button class="btn primary" type="submit"'+(S.busy?' disabled':'')+'>'+(S.busy?'Entrando…':'Iniciar sesión')+'</button></form>');
-}
 function render(){
   var el=$('panel-candidatos');if(!el)return;
   if(S.status==='unconfigured'){el.innerHTML=gate(ci('lock',24),'Falta conectar la base de datos','Completa candidatos-config.js con la dirección y la clave de tu proyecto de Supabase. Los pasos están en CANDIDATOS.md.');return;}
   if(S.status==='starting'||S.status==='loading'){el.innerHTML='<p class="none">Cargando candidatos…</p>';return;}
-  if(S.status==='idle'){
-    var em=$('cl-email');if(em)S.lastEmail=em.value;
-    el.innerHTML=loginForm();return;
-  }
-  if(S.status==='error'){el.innerHTML=gate(ci('lock',24),'No se pudieron cargar los candidatos',esc(S.error),'<div class="adm-actions"><button class="btn primary" data-act="c-reload">'+ci('refresh',17)+'Reintentar</button><button class="btn" data-act="c-logout">Cerrar sesión</button></div>');return;}
+  if(S.status==='idle'){el.innerHTML='';return;}
+  if(S.status==='error'){el.innerHTML=gate(ci('lock',24),'No se pudieron cargar los candidatos',esc(S.error),'<button class="btn primary" data-act="c-reload">'+ci('refresh',17)+'Reintentar</button>');return;}
 
   var al=alerts(),soon=al.filter(function(c){return due(c)==='soon';}).length;
   var stats='<div class="stats"><div class="stat"><div class="v">'+(al.length-soon)+'</div><div class="l">Ya están buscando</div></div>'+
@@ -220,16 +188,15 @@ function render(){
     if(pend.length)body+='<div class="group-title">Más adelante</div><div class="list">'+pend.map(row).join('')+'</div>';
     if(done.length)body+=(la.length||pend.length?'<details class="pastbox"><summary>Ya gestionados ('+done.length+')</summary><div class="list">'+done.map(row).join('')+'</div></details>':'<div class="list">'+done.map(row).join('')+'</div>');
   }
-  var who='<div class="whoami">'+ci('lock',15)+'<span>Conectado como <b>'+esc(myName())+'</b></span>'+
-    '<button class="linkbtn" data-act="c-reload">'+ci('refresh',14)+'Actualizar</button><button class="linkbtn" data-act="c-pass">Cambiar contraseña</button><button class="linkbtn" data-act="c-logout">Cerrar sesión</button></div>';
+  var who='<div class="whoami"><span></span><button class="linkbtn" data-act="c-reload">'+ci('refresh',14)+'Actualizar candidatos</button></div>';
   CC.keepFocus('q-cand',stats+toolbar+'<div class="stack">'+body+'</div>'+who,el);
 }
 function inicioBlock(){
   if(!configured)return '';
   var head='<div class="blkhead"><h2>'+ci('bell',18)+'Candidatos por contactar</h2><button class="linkbtn" data-act="c-goto" data-v="todos">Ver todos</button></div>';
   var b;
-  if(S.status==='idle')b='<p class="none">Inicia sesión para ver a quién toca contactar. <button class="linkbtn" data-act="c-goto" data-v="todos">Iniciar sesión</button></p>';
-  else if(S.status==='starting'||S.status==='loading')b='<p class="none">Cargando…</p>';
+  if(S.status==='idle')return '';
+  if(S.status==='starting'||S.status==='loading')b='<p class="none">Cargando…</p>';
   else if(S.status!=='ok')b='<p class="none">No disponible ahora. <button class="linkbtn" data-act="c-goto" data-v="todos">Ver detalle</button></p>';
   else{
     var al=alerts();
@@ -614,7 +581,7 @@ async function runImport(){
 document.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b)return;
   var act=b.getAttribute('data-act');if(act.indexOf('c-')!==0)return;
-  if(act==='c-logout'){logout();return;}
+  if(act==='c-logout'){Sesion.signOut();return;}
   if(act==='c-reload'){loadAll();return;}
   if(act==='c-new'){openForm(null);return;}
   if(act==='c-import'){var fi=$('c-impfile');if(fi){fi.value='';fi.click();}return;}
@@ -624,19 +591,18 @@ document.addEventListener('click',function(e){
   if(act==='c-delete'){removeCand();return;}
   if(act==='c-contacted'){markContacted(b.getAttribute('data-id'));return;}
   if(act==='c-filter'){S.filtro=b.getAttribute('data-v');render();return;}
-  if(act==='c-goto'){S.filtro=b.getAttribute('data-v')||'todos';CC.setTab('candidatos');render();window.scrollTo(0,0);var em=$('cl-email');if(em)em.focus();return;}
+  if(act==='c-goto'){S.filtro=b.getAttribute('data-v')||'todos';CC.setTab('candidatos');render();window.scrollTo(0,0);return;}
 });
 /* Los formularios de candidatos se manejan aquí, no con el guardado de data.json de app.js. */
 document.addEventListener('submit',function(e){
   var id=e.target&&e.target.id;
-  if(id==='csheet'||id==='cpass'||id==='clogin'||id==='cimp'){
+  if(id==='csheet'||id==='cpass'||id==='cimp'){
     e.preventDefault();e.stopPropagation();
-    if(id==='csheet')save();else if(id==='cpass')savePass();else if(id==='cimp')runImport();else login();
+    if(id==='csheet')save();else if(id==='cpass')savePass();else runImport();
   }
 },true);
 document.addEventListener('input',function(e){
   if(e.target.id==='q-cand'){S.q=e.target.value;render();}
-  else if(e.target.id==='cl-email'){S.lastEmail=e.target.value;}
 });
 document.addEventListener('change',function(e){
   var t=e.target;
