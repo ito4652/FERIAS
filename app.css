@@ -391,3 +391,18 @@ header h1{color:#fff}
 .clogin label{font:700 13px var(--f-body);margin-top:6px}
 .clogin .btn{margin-top:12px}
 .clogin .cerr{margin:6px 0 0;font-size:13.5px;max-width:none}
+.carea{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.sheet.wide{width:min(940px,100%)}
+.imeta{margin:0;color:var(--muted);font-size:13.5px}
+.imeta b{color:var(--ink);font-weight:600}
+.itable{overflow-x:auto;border:1px solid var(--line);border-radius:14px;max-height:52vh;overflow-y:auto}
+.itable table{border-collapse:collapse;width:100%;min-width:640px;font-size:13.5px}
+.itable th{position:sticky;top:0;background:var(--surface-2);text-align:left;font:700 12.5px var(--f-body);color:var(--muted);padding:9px 10px;border-bottom:1px solid var(--line);z-index:1}
+.itable td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.itable tr:last-child td{border-bottom:0}
+.itable tr.off td{opacity:.5}
+.itable td:first-child{width:36px}
+.itable input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent)}
+.itable input[type=month]{padding:6px 8px;font-size:13px;width:150px}
+.isub{color:var(--muted);font-size:12px;margin-top:2px}
+.isum{margin:0;font:600 13.5px var(--f-body)}

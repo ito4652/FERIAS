@@ -1,5 +1,5 @@
 /* Primero la red, con copia guardada como respaldo: los datos siempre se ven al día y la app abre sin conexión. */
-var CACHE='ferias-v3';
+var CACHE='ferias-v4';
 var ASSETS=['./','index.html','app.css','app.js','data.json','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png','candidatos.js','candidatos-config.js','supabase.min.js'];
 
 self.addEventListener('install',function(e){

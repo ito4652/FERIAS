@@ -70,6 +70,17 @@ Esta clave está hecha para ir en apps web públicas: no es una contraseña. **N
 
 ---
 
+## Importar desde Excel
+
+En la pestaña Candidatos, **Importar Excel** carga muchos candidatos de una vez desde un `.xlsx` o `.csv`. El archivo se lee en el navegador y va directo a Supabase.
+
+- La primera fila con datos debe tener los encabezados. Se reconocen, entre otros: Nombre, Contacto (o Teléfono, Celular, Correo), Carrera, Universidad, Estado (o Año, Situación), ¿Titulado?, Área de interés, Disponibilidad y Duración de práctica. Las columnas que no se reconocen se guardan en las notas.
+- **Disponibilidad** se convierte al mes en que empiezan a buscar: “Inmediata” es el mes actual, y un mes sin año (“Enero”) es la próxima vez que llega ese mes. Si la celda dice “Enero - Febrero”, se usa el primero. El texto original queda en las notas.
+- Antes de guardar se muestra una vista previa: las filas sin mes, sin nombre o ya registradas (mismo teléfono, correo o nombre) aparecen primero, para revisarlas.
+- Los CV no vienen en el Excel: se suben después desde la ficha de cada candidato.
+
+---
+
 ## Mantenimiento
 
 **Pausa por inactividad.** En el plan gratuito, Supabase pausa el proyecto si nadie lo usa durante una semana. Si la app muestra que no se pudo conectar, entra a supabase.com, abre el proyecto y pulsa **Restore project**. Los datos no se pierden.

@@ -38,6 +38,11 @@ drop trigger if exists candidatos_actualizado on public.candidatos;
 create trigger candidatos_actualizado before update on public.candidatos
   for each row execute function public.tocar_actualizado();
 
+-- Campos agregados para importar desde Excel (no hace nada si ya existen).
+alter table public.candidatos add column if not exists nivel        text;
+alter table public.candidatos add column if not exists area_interes text;
+alter table public.candidatos add column if not exists duracion     text;
+
 alter table public.candidatos enable row level security;
 
 -- Permisos explícitos: solo usuarios con sesión iniciada; los visitantes anónimos no tienen acceso.
