@@ -964,13 +964,6 @@ function weekHtml(){
   var days=[];for(var i=0;i<7;i++){var d=new Date(mon);d.setDate(mon.getDate()+i);days.push(d);}
   var t=todayStr(),a=days[0],b=days[6];
   var rango=a.getMonth()===b.getMonth()?a.getDate()+' al '+b.getDate()+' de '+longMon(b):a.getDate()+' de '+longMon(a)+' al '+b.getDate()+' de '+longMon(b);
-  var w0=ymdOf(a),w1=ymdOf(b);
-  var spans=state.eventosdo.filter(function(e){return doEnd(e)!==e.fecha&&e.fecha<=w1&&doEnd(e)>=w0;}).sort(cmpFeria).map(function(e){
-    var s0=e.fecha<w0?0:Math.round((parseDate(e.fecha)-a)/864e5),s1=doEnd(e)>w1?6:Math.round((parseDate(doEnd(e))-a)/864e5);
-    var fin=parseDate(doEnd(e));
-    return '<button class="wk-span" data-act="goto" data-tab="do" style="grid-column:'+(s0+1)+' / '+(s1+2)+'">'+
-      '<span class="wk-span-t">DO: '+esc(e.nombre)+'</span><span class="wk-span-d">'+(e.fecha<w0?'desde '+esc(shortDM(parseDate(e.fecha)))+' · ':'')+'hasta '+esc(shortDM(fin))+'</span></button>';
-  }).join('');
   var titulo=state.wk===0?'Esta semana':state.wk===1?'Próxima semana':state.wk===-1?'Semana pasada':'Semana';
   var cells=days.map(function(d){
     var ds=ymdOf(d),it=weekItems(ds),past=ds<t;
@@ -984,7 +977,6 @@ function weekHtml(){
     '<div class="wk-nav"><button class="iconbtn" data-act="wk" data-v="-1" aria-label="Semana anterior">'+ic('chevl',18)+'</button>'+
     (state.wk!==0?'<button class="btn wk-today" data-act="wk" data-v="0">Hoy</button>':'')+
     '<button class="iconbtn" data-act="wk" data-v="1" aria-label="Semana siguiente">'+ic('chev',18)+'</button></div></div>'+
-    (spans?'<div class="wk-spans" aria-label="Eventos de varios días">'+spans+'</div>':'')+
     '<div class="wk-grid">'+cells+'</div>'+
     '<div class="wk-legend"><span class="lg feria">Feria</span><span class="lg do">DO</span><span class="lg jp">JP</span><span class="lg cumple">Cumpleaños</span><span class="lg ag">Actividad del equipo</span></div></section>';
 }
@@ -1004,13 +996,14 @@ function renderInicio(){
     if(!!a.importante!==!!b.importante) return a.importante?-1:1;
     return (b.fecha||'')<(a.fecha||'')?-1:(b.fecha||'')>(a.fecha||'')?1:0;
   });
-  var rest=av.slice(1),more=rest.length>3?'<p class="none">+ '+(rest.length-3)+' anuncio'+(rest.length-3===1?'':'s')+' más</p>':'';
+  /* Los anuncios van todos en Novedades, al final; arriba queda solo el saludo. */
+  var rest=av,more=rest.length>3?'<p class="none">+ '+(rest.length-3)+' anuncio'+(rest.length-3===1?'':'s')+' más</p>':'';
   var avBlock=(ADMIN||rest.length)?'<section class="blk"><div class="blkhead"><h2>'+ic('megaphone',18)+'Novedades</h2>'+
     (ADMIN?'<button class="btn primary" data-act="new" data-kind="aviso">'+ic('plus',17)+'Nuevo anuncio</button>':'')+'</div>'+
-    (rest.length?'<div class="avlist">'+rest.slice(0,3).map(avisoRow).join('')+'</div>'+more:'<p class="none">'+(av.length?'No hay más anuncios.':'Sin anuncios. Publica uno con “Nuevo anuncio”.')+'</p>')+'</section>':'';
+    (rest.length?'<div class="avlist">'+rest.slice(0,3).map(avisoRow).join('')+'</div>'+more:'<p class="none">Sin anuncios. Publica uno con “Nuevo anuncio”.</p>')+'</section>':'';
   var nom=miNombre();
   var hello='<section class="hx-hello"><div class="hx-date">'+esc(cap(longDay.format(new Date())))+'</div><h1 class="hx-hi">'+esc(saludo()+(nom?', '+nom:''))+'</h1></section>';
-  el.innerHTML='<div class="hx">'+hello+annHtml(av[0])+heroHtml()+tilesHtml()+weekHtml()+avBlock+'</div>';
+  el.innerHTML='<div class="hx">'+hello+heroHtml()+tilesHtml()+weekHtml()+avBlock+'</div>';
 }
 /* Ventana para agregar, cambiar o quitar una actividad del equipo. Se guarda al instante, sin Publicar. */
 function agOpen(id,fecha){
