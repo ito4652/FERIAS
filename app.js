@@ -197,6 +197,50 @@ async function publish(){
     toast(/permiso/.test(dbMsg(e))?'Tu cuenta no puede publicar cambios.':dbMsg(e));
   }
 }
+/* Cambio rápido (por ejemplo, marcar una compra): se aplica solo ese cambio sobre la última versión publicada,
+   sin pasar por el modo edición ni publicar borradores. Si otra persona publicó entremedio, se reintenta. */
+var quickChain=Promise.resolve();
+function quickSave(mut){
+  var run=quickChain.then(async function(){
+    for(var intento=0;intento<4;intento++){
+      var r=await SB.from('app_datos').select('contenido,actualizado').eq('id','principal').maybeSingle();
+      if(r.error)throw r.error;if(!r.data)throw new Error('sin datos');
+      var c=clone(r.data.contenido);mut(c);
+      var q=await SB.from('app_datos').update({contenido:c,actualizado_por:Sesion.email}).eq('id','principal').eq('actualizado',r.data.actualizado).select('actualizado');
+      if(q.error)throw q.error;
+      if(q.data&&q.data.length)return {contenido:c,ts:q.data[0].actualizado};
+    }
+    throw new Error('ocupado');
+  });
+  quickChain=run.catch(function(){});
+  return run;
+}
+function setBought(cid,iid,val){
+  return function(d){
+    var cu=(d.cumpleanos||[]).filter(function(x){return x.id===cid;})[0];if(!cu)return;
+    var it=(cu.items||[]).filter(function(x){return x.id===iid;})[0];if(it)it.comprado=val;
+  };
+}
+function toggleBought(cid,iid){
+  if(state.status!=='ok')return;
+  if(state.offline||!navigator.onLine){toast('Sin conexión: no se puede marcar ahora.');return;}
+  var cu=state.cumpleanos.filter(function(x){return x.id===cid;})[0];
+  var it=cu&&(cu.items||[]).filter(function(x){return x.id===iid;})[0];if(!it)return;
+  var val=!it.comprado,wasDirty=ADMIN&&isDirty(),mut=setBought(cid,iid,val);
+  mut(state);renderAll();
+  quickSave(mut).then(function(res){
+    state.remoteTs=state.updated=res.ts;saveCache(res.contenido,res.ts);
+    if(ADMIN){
+      /* En modo edición se respeta el borrador: el cambio se suma también a la base para que no cuente como pendiente. */
+      if(state.baseData)mut(state.baseData);
+      if(!wasDirty){state.published=sig();persist();}
+    }else{applyData(res.contenido);state.published=sig();}
+    renderAll();
+  }).catch(function(e){
+    setBought(cid,iid,!val)(state);renderAll();
+    toast(String(e&&e.message)==='ocupado'?'Hay muchos cambios al mismo tiempo. Intenta de nuevo.':dbMsg(e)+' No se guardó la compra.');
+  });
+}
 /* Traspaso inicial: copia el data.json que todavía está en el repositorio (o un respaldo) a Supabase. */
 async function migrate(contenido){
   if(!ADMIN||state.publishing)return;
@@ -526,7 +570,8 @@ function cumpleRow(c,past,isNext){
   if(st.total||c.notas){
     var label=st.total?('Compras ('+(st.total-st.pend)+'/'+st.total+')'+(c.notas?' y notas':'')):'Notas';
     var list=st.total?'<ul class="cl">'+st.items.map(function(it){
-      return '<li class="'+(it.comprado?'done':'')+'"><span class="cmark">'+(it.comprado?ic('check',13):'')+'</span><span class="cname">'+esc(it.nombre)+'</span><span class="ccost">'+(it.costo===''||it.costo==null?'—':money(it.costo))+'</span></li>';
+      return '<li class="'+(it.comprado?'done':'')+'"><button type="button" class="cbtn" data-act="ckbuy" data-c="'+esc(c.id)+'" data-it="'+esc(it.id)+'" role="checkbox" aria-checked="'+(!!it.comprado)+'" aria-label="'+esc(it.nombre)+(it.comprado?': comprado':': por comprar')+'">'+
+        '<span class="cmark">'+(it.comprado?ic('check',13):'')+'</span><span class="cname">'+esc(it.nombre)+'</span></button><span class="ccost">'+(it.costo===''||it.costo==null?'—':money(it.costo))+'</span></li>';
     }).join('')+'</ul>':'';
     var key='c:'+c.id;
     det='<details class="notebox" data-note="'+esc(key)+'"'+(state.openNotes[key]?' open':'')+'><summary>'+label+'</summary>'+list+(c.notas?'<div class="notetext">'+esc(c.notas)+'</div>':'')+'</details>';
@@ -1108,6 +1153,7 @@ document.addEventListener('click',function(e){
   if(act==='copy'){copyText(b.getAttribute('data-text'));return;}
   if(act==='cal'){openCal(b.getAttribute('data-id'));return;}
   if(act==='ics'){var ff=calItem(b.getAttribute('data-id'));if(ff){downloadIcs(ff);closeSheet();}return;}
+  if(act==='ckbuy'){toggleBought(b.getAttribute('data-c'),b.getAttribute('data-it'));return;}
   if(act==='logodel'){if(state.edit){state.edit.logo='';logoPaint();var lf=$('f-logofile');if(lf)lf.value='';var lr=$('f-logoreuse');if(lr)lr.value='';}return;}
   if(act==='photodel'){if(state.edit){state.edit.foto='';var pv=$('photo-prev');if(pv)pv.innerHTML=photoPrev(val('nombre'),'');var fi=$('f-fotofile');if(fi)fi.value='';}return;}
   if(act==='itadd'){if(state.edit&&state.edit.items){state.edit.items.push({id:newId(),nombre:'',costo:'',comprado:false});var ed=$('items-editor');if(ed){ed.innerHTML=itemsHtml();var ins=ed.querySelectorAll('input[data-it="n"]');if(ins.length)ins[ins.length-1].focus();}}return;}
