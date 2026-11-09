@@ -422,3 +422,26 @@ html.locked .gate{display:block}
 .foot{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 10px}
 .footses{display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 12px}
 .footses b{color:var(--ink);font-weight:600}
+
+/* ---------- Candidatos agrupados por feria ---------- */
+.fgroup{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-sm);overflow:hidden}
+.fgroup>summary{list-style:none;display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;min-height:64px}
+.fgroup>summary::-webkit-details-marker{display:none}
+.fgroup>summary:hover{background:var(--surface-2)}
+.fgroup>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.fg-ic{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft,var(--surface-2));color:var(--accent-strong)}
+.fgroup.alert .fg-ic{background:var(--warn-bg);color:var(--warn)}
+.fg-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.fg-name{font:700 15.5px var(--f-body);color:var(--ink);overflow-wrap:anywhere}
+.fg-sub{font-size:13px;color:var(--muted)}
+.fg-chev{flex:none;color:var(--muted);transition:transform .2s ease;display:grid}
+.fgroup[open] .fg-chev{transform:rotate(90deg)}
+.fgroup>.list{padding:4px 12px 12px;border-top:1px solid var(--line);background:var(--surface-2)}
+.fgroup>.list .row{margin-top:8px}
+@media (prefers-reduced-motion:reduce){.fg-chev{transition:none}}
+@media (max-width:760px){
+  .fgroup>summary{display:grid;grid-template-columns:40px minmax(0,1fr) 18px;grid-template-areas:"ic main chev" "ic pill chev";column-gap:12px;row-gap:6px;align-items:center}
+  .fg-ic{grid-area:ic;align-self:start}.fg-main{grid-area:main}.fg-chev{grid-area:chev}
+  .fgroup>summary .pill{grid-area:pill;justify-self:start}
+  .fgroup>.list{padding:4px 8px 10px}
+}
