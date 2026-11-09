@@ -279,10 +279,10 @@ function renderTabs(){
   $('tabs').innerHTML=
     '<button class="tab" role="tab" data-act="tab" data-tab="inicio" aria-selected="'+(state.tab==='inicio')+'">Inicio</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="ferias" aria-selected="'+(state.tab==='ferias')+'">Ferias<span class="n">'+(window.CandHooks?window.CandHooks.badge():'')+'</span></button>'+
-    '<button class="tab" role="tab" data-act="tab" data-tab="cumpleanos" aria-selected="'+(state.tab==='cumpleanos')+'">Cumpleaños</button>'+
-    '<button class="tab" role="tab" data-act="tab" data-tab="jp" aria-selected="'+(state.tab==='jp')+'" title="Jóvenes Profesionales">JP</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="do" aria-selected="'+(state.tab==='do')+'">DO</button>'+
+    '<button class="tab" role="tab" data-act="tab" data-tab="jp" aria-selected="'+(state.tab==='jp')+'" title="Jóvenes Profesionales">JP</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="plataformas" aria-selected="'+(state.tab==='plataformas')+'">Plataformas</button>'+
+    '<button class="tab" role="tab" data-act="tab" data-tab="cumpleanos" aria-selected="'+(state.tab==='cumpleanos')+'">Cumpleaños</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="equipo" aria-selected="'+(state.tab==='equipo')+'">Equipo</button>';
   var sel=$('tabs').querySelector('[aria-selected="true"]');if(sel&&sel.scrollIntoView){try{sel.scrollIntoView({inline:'center',block:'nearest'});}catch(e){}}
   var sb=$('subtabs');
