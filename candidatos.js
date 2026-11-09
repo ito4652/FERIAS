@@ -178,7 +178,8 @@ function groups(list,byNew){
     return '<details class="fgroup'+(nAl?' alert':'')+'" data-g="'+esc(k)+'"'+(open?' open':'')+'>'+
       '<summary><span class="fg-ic">'+(k&&CC.feriaMark?CC.feriaMark(feriaDe(k)||{nombre:k}):ic('cal',18))+'</span><span class="fg-main"><span class="fg-name">'+esc(k||'Sin feria')+'</span><span class="fg-sub">'+esc(sub)+'</span></span>'+
       (nAl?'<span class="pill warn">'+nAl+' por contactar</span>':'')+'<span class="fg-chev">'+ic('chev',18)+'</span></summary>'+
-      '<div class="list">'+cs.map(function(c){return row(c,true);}).join('')+'</div></details>';
+      '<div class="list">'+cs.map(function(c){return row(c,true);}).join('')+
+      (k&&feriaDe(k)?'<button class="linkbtn fg-add" data-act="c-newf" data-id="'+esc(feriaDe(k).id)+'">'+ic('plus',15)+'Agregar candidato a esta feria</button>':'')+'</div></details>';
   }).join('');
 }
 function gate(icon,title,text,extra){
@@ -236,8 +237,21 @@ function inicioBlock(){
   }
   return '<section class="blk candblk">'+head+b+'</section>';
 }
+function ofFeria(f){return S.items.filter(function(c){return c.feriaId?c.feriaId===f.id:(c.feria&&c.feria===f.nombre);});}
+function feriaInfo(f){
+  if(S.status!=='ok')return null;
+  var cs=ofFeria(f);return {n:cs.length,alert:cs.filter(isAlert).length};
+}
+function showFeria(fid){
+  var f=CC.state.ferias.filter(function(x){return x.id===fid;})[0];if(!f)return;
+  var cs=ofFeria(f),k=cs.length?(cs[0].feria||f.nombre):f.nombre;
+  S.q='';S.filtro='todos';S.open={};S.open[k]=true;
+  CC.goCand();render();
+  var g=document.querySelector('.fgroup[data-g="'+(window.CSS&&CSS.escape?CSS.escape(k):k)+'"]');
+  if(g&&g.scrollIntoView){try{g.scrollIntoView({block:'start',behavior:'smooth'});}catch(e){g.scrollIntoView();}}
+}
 function badge(){return S.status==='ok'?(alerts().length||''):'';}
-function repaint(){render();CC.renderTabs();CC.renderInicio();}
+function repaint(){render();CC.renderTabs();CC.renderInicio();if(CC.renderFerias)CC.renderFerias();}
 
 /* ---------- Formularios ---------- */
 function fld(id,label,type,value,o){
@@ -265,11 +279,11 @@ function sheet(id,title,fields,actions){
     '<div class="sheet-actions"><button class="btn primary" type="submit" id="c-save">Guardar</button><button class="btn" type="button" data-act="close">Cancelar</button>'+
     '<span class="sp"></span>'+(actions||'')+'</div></form></div>';
 }
-function openForm(id){
+function openForm(id,presetFeria){
   var rec=id?(S.items.filter(function(c){return c.id===id;})[0]||{}):{};
   S.edit={id:id||null,rec:rec};S.file=null;S.delArmed=false;S.busy=false;
   var f=fld('nombre','Nombre completo','text',rec.nombre,{full:true})+
-    fld('feria','Feria donde lo conocieron','select',id?(rec.feriaId||''):defaultFeria(),{full:true,options:feriaOptions(rec),empty:'Otra o sin feria'})+
+    fld('feria','Feria donde lo conocieron','select',id?(rec.feriaId||''):(presetFeria||defaultFeria()),{full:true,options:feriaOptions(rec),empty:'Otra o sin feria'})+
     fld('universidad','Universidad','text',rec.universidad)+
     fld('carrera','Carrera','text',rec.carrera)+
     fld('nivel','Año o situación','text',rec.nivel,{ph:'Ej: 4° año, Titulado'})+
@@ -618,7 +632,9 @@ document.addEventListener('click',function(e){
   if(act==='c-delete'){removeCand();return;}
   if(act==='c-contacted'){markContacted(b.getAttribute('data-id'));return;}
   if(act==='c-filter'){S.filtro=b.getAttribute('data-v');S.open={};render();return;}
-  if(act==='c-goto'){S.filtro=b.getAttribute('data-v')||'todos';CC.setTab('candidatos');render();window.scrollTo(0,0);return;}
+  if(act==='c-goto'){S.filtro=b.getAttribute('data-v')||'todos';S.open={};CC.goCand();render();window.scrollTo(0,0);return;}
+  if(act==='c-feria'){showFeria(b.getAttribute('data-id'));return;}
+  if(act==='c-newf'){openForm(null,b.getAttribute('data-id'));return;}
 });
 /* Los formularios de candidatos se manejan aquí, no con el guardado de data.json de app.js. */
 document.addEventListener('submit',function(e){
@@ -655,7 +671,7 @@ document.addEventListener('visibilitychange',function(){
 });
 
 var impInput=document.createElement('input');impInput.type='file';impInput.id='c-impfile';impInput.accept='.xlsx,.csv';impInput.hidden=true;document.body.appendChild(impInput);
-window.CandHooks={badge:badge,inicioBlock:inicioBlock,render:render};
+window.CandHooks={badge:badge,inicioBlock:inicioBlock,render:render,feriaInfo:feriaInfo};
 repaint();
 init();
 })();

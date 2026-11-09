@@ -467,3 +467,9 @@ html.locked .gate{display:block}
 .cbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .cbtn .cmark{transition:background .15s,border-color .15s}
 @media (prefers-reduced-motion:reduce){.cbtn .cmark{transition:none}}
+
+/* ---------- Candidatos dentro de Ferias ---------- */
+.subtabs .fchip .n{margin-left:6px;font-size:11.5px;font-weight:700;background:var(--warn-bg);color:var(--warn);border-radius:999px;padding:0 7px}
+.candlink{gap:6px;flex-wrap:wrap}
+.candlink .pill{margin-left:2px}
+.fg-add{display:inline-flex;align-items:center;gap:6px;margin-top:10px}

@@ -29,7 +29,8 @@ var P={
   x:'<path d="M6 6l12 12M18 6 6 18"/>',
   megaphone:'<path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 9a4 4 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/>',
   link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-  chev:'<path d="m9 6 6 6-6 6"/>'
+  chev:'<path d="m9 6 6 6-6 6"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>'
 };
 function ic(name,size){size=size||18;return '<svg class="ic" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+P[name]+'</svg>';}
 
@@ -58,8 +59,8 @@ function sig(){
 function isDirty(){return ADMIN&&state.status==='ok'&&sig()!==state.published;}
 function norm(arr){return (Array.isArray(arr)?arr:[]).filter(function(r){return r&&typeof r==='object';}).map(function(r){if(!r.id)r.id=newId();return r;});}
 
-try{var saved=localStorage.getItem('ferias-tab');if(saved==='inicio'||saved==='ferias'||saved==='cumpleanos'||saved==='plataformas'||saved==='do'||saved==='equipo'||saved==='candidatos')state.tab=saved;else if(saved==='contactos'){state.tab='ferias';state.sub='directorio';}
-  var ssub=localStorage.getItem('ferias-sub');if(ssub==='calendario'||ssub==='directorio'||ssub==='asistencia')state.sub=ssub;}catch(e){}
+try{var saved=localStorage.getItem('ferias-tab');if(saved==='inicio'||saved==='ferias'||saved==='cumpleanos'||saved==='plataformas'||saved==='do'||saved==='equipo')state.tab=saved;else if(saved==='candidatos'){state.tab='ferias';state.sub='candidatos';}else if(saved==='contactos'){state.tab='ferias';state.sub='directorio';}
+  var ssub=localStorage.getItem('ferias-sub');if(ssub==='calendario'||ssub==='directorio'||ssub==='asistencia'||ssub==='candidatos')state.sub=ssub;}catch(e){}
 $('brand').innerHTML=ic('cal',24);
 if(!$('panel-inicio')){
   var pi=document.createElement('section');
@@ -276,9 +277,8 @@ function renderTabs(){
   var ok=state.status==='ok';
   $('tabs').innerHTML=
     '<button class="tab" role="tab" data-act="tab" data-tab="inicio" aria-selected="'+(state.tab==='inicio')+'">Inicio</button>'+
-    '<button class="tab" role="tab" data-act="tab" data-tab="ferias" aria-selected="'+(state.tab==='ferias')+'">Ferias</button>'+
+    '<button class="tab" role="tab" data-act="tab" data-tab="ferias" aria-selected="'+(state.tab==='ferias')+'">Ferias<span class="n">'+(window.CandHooks?window.CandHooks.badge():'')+'</span></button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="cumpleanos" aria-selected="'+(state.tab==='cumpleanos')+'">Cumpleaños</button>'+
-    (window.CAND_CONFIG?'<button class="tab" role="tab" data-act="tab" data-tab="candidatos" aria-selected="'+(state.tab==='candidatos')+'">Candidatos<span class="n">'+(window.CandHooks?window.CandHooks.badge():'')+'</span></button>':'')+
     '<button class="tab" role="tab" data-act="tab" data-tab="do" aria-selected="'+(state.tab==='do')+'">DO</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="plataformas" aria-selected="'+(state.tab==='plataformas')+'">Plataformas</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="equipo" aria-selected="'+(state.tab==='equipo')+'">Equipo</button>';
@@ -286,6 +286,7 @@ function renderTabs(){
   var sb=$('subtabs');
   sb.hidden=state.tab!=='ferias';
   sb.innerHTML='<button class="fchip" role="tab" data-act="sub" data-v="calendario" aria-selected="'+(state.sub==='calendario')+'" aria-pressed="'+(state.sub==='calendario')+'">Calendario</button>'+
+    (window.CandHooks?'<button class="fchip" role="tab" data-act="sub" data-v="candidatos" aria-selected="'+(state.sub==='candidatos')+'" aria-pressed="'+(state.sub==='candidatos')+'">Candidatos'+(window.CandHooks.badge()?'<span class="n">'+window.CandHooks.badge()+'</span>':'')+'</button>':'')+
     '<button class="fchip" role="tab" data-act="sub" data-v="directorio" aria-selected="'+(state.sub==='directorio')+'" aria-pressed="'+(state.sub==='directorio')+'">Directorio</button>'+
     '<button class="fchip" role="tab" data-act="sub" data-v="asistencia" aria-selected="'+(state.sub==='asistencia')+'" aria-pressed="'+(state.sub==='asistencia')+'">Asistencia</button>';
   $('panel-ferias').hidden=!(state.tab==='ferias'&&state.sub==='calendario');
@@ -294,7 +295,7 @@ function renderTabs(){
   $('panel-plataformas').hidden=state.tab!=='plataformas';
   $('panel-do').hidden=state.tab!=='do';
   $('panel-equipo').hidden=state.tab!=='equipo';
-  $('panel-candidatos').hidden=state.tab!=='candidatos';
+  $('panel-candidatos').hidden=!(state.tab==='ferias'&&state.sub==='candidatos');
   $('panel-contactos').hidden=!(state.tab==='ferias'&&state.sub==='directorio');
   $('panel-asistencia').hidden=!(state.tab==='ferias'&&state.sub==='asistencia');
 }
@@ -330,7 +331,7 @@ function feriaRow(f,past,isNext){
       (f.lugar?'<div class="meta">'+ic('pin',15)+'<span>'+esc(f.lugar)+'</span></div>':'')+
       '<div class="tags"><span class="pill '+est[1]+'">'+est[0]+'</span>'+
         (MATERIALES[f.material]?'<span class="pill mat'+(f.material==='nada'?' none-mat':'')+'">'+MATERIALES[f.material]+'</span>':'')+
-        (isNext?'<span class="tag-next">Siguiente</span>':'')+'</div>'+calBtn(f,past)+'</div>'+
+        (isNext?'<span class="tag-next">Siguiente</span>':'')+'</div>'+calBtn(f,past)+candLink(f)+'</div>'+
     '<div class="time">'+hora+'</div>'+
     '<div class="who">'+people(f.responsables)+'</div>'+
     (ADMIN?'<div class="act">'+editBtn('feria',f.id,f.nombre)+'</div>':'')+
@@ -338,6 +339,14 @@ function feriaRow(f,past,isNext){
   '</div>';
 }
 /* ---------- Calendario ---------- */
+/* Acceso a los candidatos de cada feria (vienen de candidatos.js). */
+function candLink(f){
+  var H=window.CandHooks;if(!H||!H.feriaInfo||f.estado==='cancelada')return '';
+  var inf=H.feriaInfo(f);if(!inf)return '';
+  if(inf.n)return '<button class="calbtn candlink" data-act="c-feria" data-id="'+esc(f.id)+'">'+ic('users',15)+inf.n+(inf.n===1?' candidato':' candidatos')+
+    (inf.alert?'<span class="pill warn">'+inf.alert+' por contactar</span>':'')+'</button>';
+  return f.fecha&&f.fecha<=todayStr()?'<button class="calbtn candlink" data-act="c-newf" data-id="'+esc(f.id)+'">'+ic('plus',15)+'Registrar candidatos</button>':'';
+}
 function calBtn(f,past){
   if(past||f.estado==='cancelada'||!parseDate(f.fecha)) return '';
   return '<button class="calbtn" data-act="cal" data-id="'+esc(f.id)+'">'+ic('calplus',15)+'Agregar al calendario</button>';
@@ -1197,6 +1206,8 @@ document.addEventListener('visibilitychange',function(){
 /* ---------- Puente para candidatos.js ---------- */
 window.CC={feriaMark:feriaMark,state:state,ic:ic,esc:esc,toast:toast,avatar:avatar,parseDate:parseDate,todayStr:todayStr,searchBox:searchBox,keepFocus:keepFocus,
   closeSheet:closeSheet,renderTabs:renderTabs,renderInicio:renderInicio,
+  renderFerias:renderFerias,
+  goCand:function(){state.tab='ferias';state.sub='candidatos';try{localStorage.setItem('ferias-tab','ferias');localStorage.setItem('ferias-sub','candidatos');}catch(x){}renderTabs();},
   setTab:function(t){state.tab=t;try{localStorage.setItem('ferias-tab',t);}catch(x){}renderTabs();}};
 
 /* ---------- Inicio ---------- */
