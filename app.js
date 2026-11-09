@@ -815,44 +815,71 @@ function cumpleRow(c,past,isNext){
     det+
   '</div>';
 }
+/* Cumpleaños: el próximo destacado (con compras de un toque) y una lista simple de lo que viene. */
+function respList(c){return String(c.responsable||'').split(/\s*[,;\n]\s*|\s+y\s+/i).map(function(x){return x.trim();}).filter(Boolean);}
+function cuPills(c,dark){
+  var st=cumpleStats(c);
+  if(!st.total)return '<p class="none">'+(ADMIN?'Sin compras definidas. Agrégalas en Editar.':'Sin compras definidas.')+'</p>';
+  return '<div class="cu-pills'+(dark?' dark':'')+'">'+st.items.map(function(it){
+    return '<button type="button" class="cu-pill'+(it.comprado?' on':'')+'" data-act="ckbuy" data-c="'+esc(c.id)+'" data-it="'+esc(it.id)+'" role="checkbox" aria-checked="'+(!!it.comprado)+'" aria-label="'+esc(it.nombre)+(it.comprado?': comprado':': por comprar')+'">'+
+      '<span class="cu-box" aria-hidden="true">'+(it.comprado?ic('check',13):'')+'</span>'+esc(it.nombre)+(it.costo!==''&&it.costo!=null&&+it.costo?'<span class="cu-cost">'+money(it.costo)+'</span>':'')+'</button>';
+  }).join('')+'</div>';
+}
+function cuBudget(st,dark){
+  if(st.pres===null&&!st.est)return '';
+  var base=st.pres!==null?st.pres:st.est,pct=base>0?Math.min(100,Math.round(st.gas/base*100)):0;
+  return '<div class="cu-bud'+(dark?' dark':'')+'"><div class="cu-bud-top"><b>'+money(base)+'</b><span>'+(st.pres!==null?'presupuesto':'estimado')+'</span></div>'+
+    '<div class="cu-bar'+(st.pres!==null&&st.gas>st.pres?' over':'')+'" role="img" aria-label="Gastado '+pct+'%"><i style="width:'+pct+'%"></i></div>'+
+    '<span class="cu-bud-sub">Gastado '+money(st.gas)+(st.pres!==null?' · '+(st.gas>st.pres?'excedido en '+money(st.gas-st.pres):'quedan '+money(st.pres-st.gas)):'')+'</span></div>';
+}
+function calBtnDark(c){return parseDate(c.fecha)?'<button class="btn hx-ghost" data-act="cal" data-id="'+esc(c.id)+'">'+ic('calplus',16)+'Agregar al calendario</button>':'';}
+function cuHero(c){
+  var st=cumpleStats(c),d=parseDate(c.fecha),dd=daysUntil(c.fecha),rs=respList(c);
+  var when=dd===0?'¡es hoy!':dd===1?'mañana, ':'en '+dd+' días, ';
+  var kick='Próximo cumpleaños · '+when+(dd===0?'':d?longDay.format(d):'');
+  return '<section class="hx-hero cu-hero" aria-labelledby="cu-next"><div class="cu-hero-top"><div class="hx-hero-main">'+
+    '<div class="hx-kicker cu-kicker">'+esc(cap(kick))+'</div><h2 class="hx-title" id="cu-next">'+esc(c.nombre)+'</h2>'+
+    (rs.length?'<div class="cu-org">'+rs.map(function(r){return '<span class="av" style="--h:'+hue(r)+'" aria-hidden="true">'+esc(initials(r))+'</span>';}).join('')+'<span>Organiza '+esc(rs.join(' y '))+'</span></div>':'<div class="cu-org"><span>Sin responsable</span></div>')+
+    '</div>'+cuBudget(st,true)+'</div>'+
+    '<div class="cu-hero-buy"><div class="cu-buyhead"><b>Compras</b>'+(st.total?'<span>'+(st.total-st.pend)+' de '+st.total+' listas · toca para marcar</span>':'')+'</div>'+cuPills(c,true)+'</div>'+
+    '<div class="hx-actions">'+calBtnDark(c)+(ADMIN?'<button class="btn hx-ghost" data-act="edit" data-kind="cumple" data-id="'+esc(c.id)+'">'+ic('pencil',16)+'Editar</button>':'')+'</div>'+
+    (c.notas?'<p class="cu-notes">'+esc(c.notas)+'</p>':'')+'</section>';
+}
+function cuRow(c,past){
+  var st=cumpleStats(c),d=parseDate(c.fecha),dd=daysUntil(c.fecha),rs=respList(c),key='cu:'+c.id;
+  var sub=[d?cap(new Intl.DateTimeFormat('es-CL',{weekday:'long'}).format(d)):'',rs.length?'organiza '+rs.join(' y '):'',st.pres!==null?money(st.pres):'',st.total?(st.total-st.pend)+' de '+st.total+' compras':''].filter(Boolean).join(' · ');
+  return '<details class="cu-row'+(past?' past':'')+'" data-note="'+esc(key)+'"'+(state.openNotes[key]?' open':'')+'><summary>'+
+    '<span class="cu-date"><b>'+(d?d.getDate():'—')+'</b><span>'+(d?esc(monFmt.format(d).replace('.','')):'')+'</span></span>'+
+    '<span class="cu-main"><span class="cu-name">'+esc(c.nombre)+'</span><span class="cu-sub">'+esc(sub)+'</span></span>'+
+    '<span class="cu-right"><span class="pill '+(past?'mat':dd<=7?'warn':'mat')+'">'+esc(past?'Realizado':dayLabel(dd))+'</span><span class="cu-chev" aria-hidden="true">'+ic('chev',18)+'</span></span></summary>'+
+    '<div class="cu-body">'+cuBudget(st,false)+'<div class="cu-buyhead"><b>Compras</b></div>'+cuPills(c,false)+
+    (c.notas?'<p class="cu-notes light">'+esc(c.notas)+'</p>':'')+
+    '<div class="cu-acts">'+(past?'':calBtn(cumpleEvent(c),false))+(ADMIN?'<button class="btn" data-act="edit" data-kind="cumple" data-id="'+esc(c.id)+'">'+ic('pencil',16)+'Editar</button>':'')+'</div></div></details>';
+}
 function renderCumples(){
   var el=$('panel-cumpleanos');
   if(stateBlock(el))return;
-  var t=todayStr(),all=state.cumpleanos.slice();
-  var upAll=all.filter(function(c){return (c.fecha||'9999')>=t;}).sort(cmpFeria);
-  var nx=upAll[0],stats;
-  if(nx){
-    var ns=cumpleStats(nx),nn=daysUntil(nx.fecha),nd=parseDate(nx.fecha);
-    var faltan=ns.items.filter(function(i){return !i.comprado;}).map(function(i){return i.nombre;});
-    var resp=String(nx.responsable||'').split(/\s*[,;\n]\s*|\s+y\s+/i).map(function(x){return x.trim();}).filter(Boolean);
-    stats='<div class="stats"><div class="stat"><div class="v txt">'+esc(nx.nombre)+'</div><div class="l">Próximo cumpleaños · '+esc(dayLabel(nn).toLowerCase())+(nd?' ('+esc(shortFmt.format(nd).replace(/\./g,''))+')':'')+'</div></div>'+
-      '<div class="stat"><div class="v txt">'+(!ns.total?'Sin compras definidas':faltan.length?esc(faltan.join(', ')):'Todo comprado')+'</div><div class="l">Falta por comprar</div></div>'+
-      '<div class="stat"><div class="v txt">'+(resp.length?esc(resp.join(', ')):'Sin responsable')+'</div><div class="l">Responsable</div></div></div>';
-  }else{
-    stats='<div class="stats"><div class="stat"><div class="v txt">—</div><div class="l">Próximo cumpleaños</div></div><div class="stat"><div class="v txt">—</div><div class="l">Falta por comprar</div></div><div class="stat"><div class="v txt">—</div><div class="l">Responsable</div></div></div>';
-  }
+  var t=todayStr(),all=state.cumpleanos.slice().sort(cmpFeria);
   var q=lower(state.cuq);
-  var list=all.filter(function(c){
-    if(!q) return true;
+  var match=function(c){
+    if(!q)return true;
     var names=(Array.isArray(c.items)?c.items:[]).map(function(i){return i.nombre;}).join(' ');
     return lower([c.nombre,c.responsable,c.notas,names].join(' ')).indexOf(q)>-1;
-  }).sort(cmpFeria);
-  var up=list.filter(function(c){return (c.fecha||'9999')>=t;});
-  var past=list.filter(function(c){return (c.fecha||'9999')<t;}).reverse();
-  var toolbar='<div class="toolbar">'+searchBox('q-cumples','Buscar por persona, responsable o compra',state.cuq,'Buscar cumpleaños')+
-    (ADMIN?'<button class="btn primary" data-act="new" data-kind="cumple">'+ic('plus',17)+'Nuevo cumpleaños</button>':'')+'</div>';
-  var body='';
+  };
+  var up=all.filter(function(c){return (c.fecha||'9999')>=t;}),past=all.filter(function(c){return (c.fecha||'9999')<t;}).reverse();
+  var nx=!q?up[0]:null;
+  var rest=up.filter(function(c){return c!==nx&&match(c);}),pastM=past.filter(match);
+  var head='<div class="cu-head"><h2>'+(nx?'Lo que viene':'Cumpleaños')+'</h2><div class="cu-tools">'+searchBox('q-cumples','Buscar persona, responsable o compra',state.cuq,'Buscar cumpleaños')+
+    (ADMIN?'<button class="btn primary" data-act="new" data-kind="cumple">'+ic('plus',17)+'Nuevo cumpleaños</button>':'')+'</div></div>';
+  var body;
   if(!all.length){
-    body=emptyBlock('cake',ADMIN?'Aún no hay cumpleaños':'Aún no hay cumpleaños registrados',ADMIN?'Agrega el primero con fecha, responsable, presupuesto y compras. Luego pulsa Publicar.':'Cuando se agreguen, los verás aquí.','<button class="btn primary" data-act="new" data-kind="cumple">'+ic('plus',17)+'Agregar el primer cumpleaños</button>');
-  }else if(!list.length){
-    body='<p class="none">Ningún cumpleaños coincide con la búsqueda.</p>';
+    body=emptyBlock('cake',ADMIN?'Aún no hay cumpleaños':'Aún no hay cumpleaños registrados',ADMIN?'Agrega el primero con fecha, responsable, presupuesto y compras. Luego pulsa Publicar.':'Cuando se agreguen, los verás aquí.','');
   }else{
-    var markNext=!state.cuq;
-    if(up.length) body+='<div class="group-title">Próximos</div><div class="list">'+up.map(function(c,i){return cumpleRow(c,false,markNext&&i===0);}).join('')+'</div>';
-    else body+='<p class="none">No hay cumpleaños próximos.</p>';
-    if(past.length) body+='<details class="pastbox"><summary>Realizados ('+past.length+')</summary><div class="list">'+past.map(function(c){return cumpleRow(c,true,false);}).join('')+'</div></details>';
+    body=(rest.length?'<div class="cu-list">'+rest.map(function(c){return cuRow(c,false);}).join('')+'</div>':
+      '<p class="none">'+(q?'Ningún cumpleaños próximo coincide con la búsqueda.':nx?'No hay más cumpleaños próximos.':'No hay cumpleaños próximos.')+'</p>')+
+      (pastM.length?'<details class="pastbox"'+(q?' open':'')+'><summary>Cumpleaños pasados ('+pastM.length+')</summary><div class="cu-list">'+pastM.map(function(c){return cuRow(c,true);}).join('')+'</div></details>':'');
   }
-  keepFocus('q-cumples',stats+toolbar+'<div class="stack">'+body+'</div>',el);
+  keepFocus('q-cumples','<div class="cu">'+(nx?cuHero(nx):'')+head+body+'</div>',el);
 }
 /* ---------- Inicio ---------- */
 function avisoRow(a){
@@ -1568,7 +1595,7 @@ document.addEventListener('submit',function(e){e.preventDefault();save();});
 /* Recuerda qué notas están abiertas aunque la lista se vuelva a dibujar. */
 document.addEventListener('toggle',function(e){
   var d=e.target;
-  if(d&&d.classList&&d.classList.contains('notebox')){
+  if(d&&d.classList&&(d.classList.contains('notebox')||d.classList.contains('cu-row'))){
     var id=d.getAttribute('data-note');
     if(d.open) state.openNotes[id]=true; else delete state.openNotes[id];
   }

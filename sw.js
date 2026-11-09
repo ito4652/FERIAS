@@ -1,5 +1,5 @@
 /* Primero la red, con copia guardada como respaldo: la app abre sin conexión. Los datos vienen de Supabase y no pasan por aquí. */
-var CACHE='ferias-v17';
+var CACHE='ferias-v18';
 var ASSETS=['./','index.html','app.css','app.js','sesion.js','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png','candidatos.js','candidatos-config.js','supabase.min.js'];
 
 self.addEventListener('install',function(e){
