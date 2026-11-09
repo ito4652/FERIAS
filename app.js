@@ -1003,7 +1003,7 @@ function renderInicio(){
     (rest.length?'<div class="avlist">'+rest.slice(0,3).map(avisoRow).join('')+'</div>'+more:'<p class="none">Sin anuncios. Publica uno con “Nuevo anuncio”.</p>')+'</section>':'';
   var nom=miNombre();
   var hello='<section class="hx-hello"><div class="hx-date">'+esc(cap(longDay.format(new Date())))+'</div><h1 class="hx-hi">'+esc(saludo()+(nom?', '+nom:''))+'</h1></section>';
-  el.innerHTML='<div class="hx">'+hello+heroHtml()+tilesHtml()+weekHtml()+avBlock+'</div>';
+  el.innerHTML='<div class="hx">'+hello+heroHtml()+tilesHtml()+weekHtml()+'</div>';
 }
 /* Ventana para agregar, cambiar o quitar una actividad del equipo. Se guarda al instante, sin Publicar. */
 function agOpen(id,fecha){
