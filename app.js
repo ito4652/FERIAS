@@ -282,7 +282,7 @@ function feriaRow(f,past,isNext){
   var hora=f.horaInicio?ic('clock',16)+'<span>'+esc(f.horaInicio)+(f.horaFin?' – '+esc(f.horaFin):'')+'</span>':'<span class="none">Sin hora</span>';
   return '<div class="row feria'+(past?' past':'')+(ADMIN?'':' noact')+'">'+
     '<div class="date">'+date+'</div>'+
-    '<div class="main"><div class="name">'+esc(f.nombre)+'</div>'+
+    '<div class="main"><div class="name fname">'+feriaMark(f,'sm')+'<span>'+esc(f.nombre)+'</span></div>'+
       (f.lugar?'<div class="meta">'+ic('pin',15)+'<span>'+esc(f.lugar)+'</span></div>':'')+
       '<div class="tags"><span class="pill '+est[1]+'">'+est[0]+'</span>'+
         (MATERIALES[f.material]?'<span class="pill mat'+(f.material==='nada'?' none-mat':'')+'">'+MATERIALES[f.material]+'</span>':'')+
@@ -732,6 +732,52 @@ function renderDO(){
   keepFocus('q-do',toolbar+'<div class="stack">'+body+'</div>',el);
 }
 /* ---------- Equipo ---------- */
+/* Marca de cada feria: el logo que subió el equipo o, si no hay, sus iniciales en color. */
+var STOPW=/^(de|del|la|las|los|el|y|en|for|of|the|ing|ingenieria|comercial|civil|feria|ferias|entrevistas|practicantes|laboral)$/;
+function feriaIni(n){
+  var w=String(n||'').trim().split(/\s+/).filter(Boolean);if(!w.length)return '?';
+  if(/^[A-ZÁÉÍÓÚÑ]{2,}$/.test(w[0]))return w[0].slice(0,6);
+  var k=w.filter(function(x){return !STOPW.test(nz(x));});if(!k.length)k=w;
+  if(k.length===1)return k[0].slice(0,2).toUpperCase();
+  return (k[0].charAt(0)+k[1].charAt(0)).toUpperCase();
+}
+function feriaMark(f,cls){
+  f=f||{};cls=cls||'';
+  if(f.logo)return '<span class="fmark logo '+cls+'" aria-hidden="true"><img src="'+esc(f.logo)+'" alt=""></span>';
+  var ini=feriaIni(f.nombre);
+  return '<span class="fmark ini '+cls+(ini.length>3?' long':'')+'" style="--h:'+hue(ini)+'" aria-hidden="true">'+esc(ini)+'</span>';
+}
+function loadLogo(file){
+  if(!file||!state.edit)return;
+  if(file.size>5*1024*1024){ferr('La imagen pesa más de 5 MB. Usa una más liviana.');return;}
+  var rd=new FileReader();
+  rd.onload=function(){
+    var im=new Image();
+    im.onload=function(){
+      /* Se ajusta entero (sin recortar) en un cuadrado de 160 px, conservando la transparencia. */
+      var S=160,c=document.createElement('canvas');c.width=S;c.height=S;
+      var w=im.naturalWidth||im.width||S,h=im.naturalHeight||im.height||S,k=Math.min(S/w,S/h),dw=w*k,dh=h*k;
+      c.getContext('2d').drawImage(im,(S-dw)/2,(S-dh)/2,dw,dh);
+      var out=c.toDataURL('image/webp',0.9);if(out.indexOf('data:image/webp')!==0)out=c.toDataURL('image/png');
+      state.edit.logo=out;logoPaint();
+    };
+    im.onerror=function(){ferr('No se pudo leer esa imagen. Prueba con un PNG o JPG.');};
+    im.src=rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+function logoPaint(){var pv=$('logo-prev');if(pv)pv.innerHTML=feriaMark({nombre:val('nombre'),logo:state.edit.logo},'xl');}
+function logoField(rec){
+  /* Logos ya usados en otras ferias, para no tener que subirlos de nuevo. */
+  var seen={},opts=state.ferias.filter(function(f){
+    if(!f.logo||f.id===rec.id||seen[f.logo])return false;seen[f.logo]=1;return true;
+  }).sort(function(a,b){return a.nombre.localeCompare(b.nombre,'es');});
+  return '<div class="fld full"><label for="f-logofile">Logo</label><div class="photoedit"><div id="logo-prev">'+feriaMark(rec,'xl')+'</div>'+
+    '<div class="photoctl"><input id="f-logofile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">'+
+    (opts.length?'<select id="f-logoreuse" aria-label="Usar el logo de otra feria"><option value="">O usa el logo de otra feria…</option>'+opts.map(function(f){return '<option value="'+esc(f.id)+'">'+esc(f.nombre)+'</option>';}).join('')+'</select>':'')+
+    '<button type="button" class="btn" data-act="logodel">Quitar logo</button></div></div>'+
+    '<span class="hint">Sube el logo de la universidad o institución (PNG con fondo transparente se ve mejor). Se achica solo. Sin logo, se muestran las iniciales.</span></div>';
+}
 function photoPrev(name,foto){
   return foto?'<img class="ph lg" src="'+esc(foto)+'" alt="">':avatar(name||'?','xl');
 }
@@ -877,7 +923,7 @@ function syncItem(t){
 function openSheet(kind,id){
   var arr=arrFor(kind);
   var rec=id?(arr.filter(function(r){return r.id===id;})[0]||{}):{};
-  state.edit={kind:kind,id:id||null,items:null,foto:(kind==='eq'&&rec.foto)||''};state.armed=false;
+  state.edit={kind:kind,id:id||null,items:null,foto:(kind==='eq'&&rec.foto)||'',logo:(kind==='feria'&&rec.logo)||''};state.armed=false;
   var f;
   if(kind==='feria'){
     f=fld('nombre','Feria o universidad','text',rec.nombre,{full:true,ph:'Ej: Feria de Postulación Universidad de Chile'})+
@@ -888,6 +934,7 @@ function openSheet(kind,id){
       fld('material','Material','select',rec.material||'',{options:Object.keys(MATERIALES),labels:MATERIALES,empty:'Sin definir'})+
       fld('lugar','Lugar','text',rec.lugar,{full:true,ph:'Sede, sala o dirección'})+
       fld('responsables','Responsables','text',rec.responsables,{full:true,hint:'Separa los nombres con coma o con “y”.'})+
+      logoField(rec)+
       fld('notas','Notas','textarea',rec.notas,{full:true});
   }else if(kind==='eq'){
     f=fld('nombre','Nombre','text',rec.nombre,{full:true})+
@@ -955,7 +1002,7 @@ function ferr(msg){var e=$('ferr');if(e)e.textContent=msg||'';}
 function collect(kind){
   var d;
   if(kind==='feria'){
-    d={nombre:val('nombre'),fecha:val('fecha'),estado:val('estado')||'porconfirmar',horaInicio:val('horaInicio'),horaFin:val('horaFin'),material:val('material'),lugar:val('lugar'),responsables:val('responsables'),notas:val('notas')};
+    d={nombre:val('nombre'),fecha:val('fecha'),estado:val('estado')||'porconfirmar',horaInicio:val('horaInicio'),horaFin:val('horaFin'),material:val('material'),lugar:val('lugar'),responsables:val('responsables'),notas:val('notas'),logo:state.edit.logo||''};
     if(!d.nombre){ferr('Escribe el nombre de la feria o la universidad.');return null;}
     if(!d.fecha){ferr('Elige la fecha de la feria.');return null;}
     if(d.horaInicio&&d.horaFin&&d.horaFin<d.horaInicio){ferr('La hora de término es anterior a la de inicio.');return null;}
@@ -1061,6 +1108,7 @@ document.addEventListener('click',function(e){
   if(act==='copy'){copyText(b.getAttribute('data-text'));return;}
   if(act==='cal'){openCal(b.getAttribute('data-id'));return;}
   if(act==='ics'){var ff=calItem(b.getAttribute('data-id'));if(ff){downloadIcs(ff);closeSheet();}return;}
+  if(act==='logodel'){if(state.edit){state.edit.logo='';logoPaint();var lf=$('f-logofile');if(lf)lf.value='';var lr=$('f-logoreuse');if(lr)lr.value='';}return;}
   if(act==='photodel'){if(state.edit){state.edit.foto='';var pv=$('photo-prev');if(pv)pv.innerHTML=photoPrev(val('nombre'),'');var fi=$('f-fotofile');if(fi)fi.value='';}return;}
   if(act==='itadd'){if(state.edit&&state.edit.items){state.edit.items.push({id:newId(),nombre:'',costo:'',comprado:false});var ed=$('items-editor');if(ed){ed.innerHTML=itemsHtml();var ins=ed.querySelectorAll('input[data-it="n"]');if(ins.length)ins[ins.length-1].focus();}}return;}
   if(act==='itdel'){if(state.edit&&state.edit.items){state.edit.items.splice(+b.getAttribute('data-i'),1);var ed2=$('items-editor');if(ed2)ed2.innerHTML=itemsHtml();}return;}
@@ -1091,6 +1139,8 @@ document.addEventListener('input',function(e){
 document.addEventListener('change',function(e){
   if(e.target&&e.target.id==='mig-file'){var fl=e.target.files&&e.target.files[0];if(fl)fl.text().then(function(t){var d=null;try{d=JSON.parse(t);}catch(x){}if(d)migrate(d);else{state.migErr='Ese archivo no parece un data.json de esta app.';renderAll();}});return;}
   if(e.target&&e.target.id==='f-fotofile'){loadPhoto(e.target.files&&e.target.files[0]);return;}
+  if(e.target&&e.target.id==='f-logofile'){loadLogo(e.target.files&&e.target.files[0]);return;}
+  if(e.target&&e.target.id==='f-logoreuse'){var src=state.ferias.filter(function(x){return x.id===e.target.value;})[0];if(src&&state.edit){state.edit.logo=src.logo;logoPaint();}return;}
   syncItem(e.target);
 });
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet();});
@@ -1099,7 +1149,7 @@ document.addEventListener('visibilitychange',function(){
 });
 
 /* ---------- Puente para candidatos.js ---------- */
-window.CC={state:state,ic:ic,esc:esc,toast:toast,avatar:avatar,parseDate:parseDate,todayStr:todayStr,searchBox:searchBox,keepFocus:keepFocus,
+window.CC={feriaMark:feriaMark,state:state,ic:ic,esc:esc,toast:toast,avatar:avatar,parseDate:parseDate,todayStr:todayStr,searchBox:searchBox,keepFocus:keepFocus,
   closeSheet:closeSheet,renderTabs:renderTabs,renderInicio:renderInicio,
   setTab:function(t){state.tab=t;try{localStorage.setItem('ferias-tab',t);}catch(x){}renderTabs();}};
 

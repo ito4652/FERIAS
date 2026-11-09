@@ -152,11 +152,12 @@ function groups(list,byNew){
     if(!G[k]){G[k]=[];order.push(k);}
     G[k].push(c);
   });
-  var fecha=function(k){
-    if(!k)return '';
-    var it=G[k][0],f=CC.state.ferias.filter(function(x){return (it.feriaId&&x.id===it.feriaId)||x.nombre===k;})[0];
-    return f&&f.fecha||'';
+  var feriaDe=function(k){
+    if(!k)return null;
+    var it=G[k][0];
+    return CC.state.ferias.filter(function(x){return it.feriaId&&x.id===it.feriaId;})[0]||CC.state.ferias.filter(function(x){return x.nombre===k;})[0]||null;
   };
+  var fecha=function(k){var f=feriaDe(k);return f&&f.fecha||'';};
   order.sort(function(a,b){
     if(!a)return 1;if(!b)return -1;
     var x=fecha(a),y=fecha(b);
@@ -175,7 +176,7 @@ function groups(list,byNew){
     var open=S.open.hasOwnProperty(k)?S.open[k]:auto;
     var sub=[d?fechaFeria.format(d).replace(/\./g,''):'',cs.length+(cs.length===1?' candidato':' candidatos')].filter(Boolean).join(' · ');
     return '<details class="fgroup'+(nAl?' alert':'')+'" data-g="'+esc(k)+'"'+(open?' open':'')+'>'+
-      '<summary><span class="fg-ic">'+ic('cal',18)+'</span><span class="fg-main"><span class="fg-name">'+esc(k||'Sin feria')+'</span><span class="fg-sub">'+esc(sub)+'</span></span>'+
+      '<summary><span class="fg-ic">'+(k&&CC.feriaMark?CC.feriaMark(feriaDe(k)||{nombre:k}):ic('cal',18))+'</span><span class="fg-main"><span class="fg-name">'+esc(k||'Sin feria')+'</span><span class="fg-sub">'+esc(sub)+'</span></span>'+
       (nAl?'<span class="pill warn">'+nAl+' por contactar</span>':'')+'<span class="fg-chev">'+ic('chev',18)+'</span></summary>'+
       '<div class="list">'+cs.map(function(c){return row(c,true);}).join('')+'</div></details>';
   }).join('');
