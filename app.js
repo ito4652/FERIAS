@@ -31,6 +31,7 @@ var P={
   link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   chev:'<path d="m9 6 6 6-6 6"/>',
   chevl:'<path d="m15 6-6 6 6 6"/>',
+  phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
   users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>'
 };
 function ic(name,size){size=size||18;return '<svg class="ic" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+P[name]+'</svg>';}
@@ -353,42 +354,58 @@ function jpEvent(j){
 }
 function jpSortAct(a){return (Array.isArray(a)?a:[]).slice().sort(function(x,y){var p=x.hora||'99',q=y.hora||'99';return p<q?-1:p>q?1:0;});}
 function jpCard(j,past){
-  var d=parseDate(j.fecha),t=todayStr();
-  var date=d?'<div class="d-num">'+d.getDate()+'</div><div class="d-mon">'+esc(monFmt.format(d).replace('.',''))+'</div><div class="d-wd">'+esc(wdFmt.format(d).replace('.',''))+'</div>':'<div class="d-num">—</div>';
-  var hora=j.horaInicio?j.horaInicio+(j.horaFin?' – '+j.horaFin:''):'';
-  var dd=d?Math.round((d-parseDate(t))/864e5):null;
-  var cuando=dd===null||past?'':dd===0?'<span class="pill warn">Hoy</span>':dd===1?'<span class="pill warn">Mañana</span>':'<span class="pill mat">En '+dd+' días</span>';
-  var acts=jpSortAct(j.actividades);
-  var prog=acts.length?'<ol class="jtl">'+acts.map(function(a){return '<li><span class="jt">'+esc(a.hora||'—')+'</span><span class="ja">'+esc(a.actividad)+'</span></li>';}).join('')+'</ol>':'<p class="none">Aún no hay actividades.</p>';
-  var tr=j.traslado||{},trs=[['Bus',tr.bus],['Marca',tr.marca],['Chofer',tr.chofer],['Contacto',tr.telefono?'<a href="tel:'+esc(String(tr.telefono).replace(/[^\d+]/g,''))+'">'+esc(tr.telefono)+'</a>':''],['Salida',[tr.salidaHora,tr.salidaLugar].filter(Boolean).map(esc).join(', ')]]
-    .filter(function(r){return r[1];});
-  var trHtml=trs.length?'<dl class="jdl">'+trs.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+(r[0]==='Bus'||r[0]==='Marca'||r[0]==='Chofer'?esc(r[1]):r[1])+'</dd>';}).join('')+'</dl>':'<p class="none">Sin traslado definido.</p>';
+  var d=parseDate(j.fecha),dd=daysUntil(j.fecha);
+  var cuando=past?'':dd===0?'hoy ':dd===1?'mañana ':dd>1?'en '+dd+' días, ':'';
+  var kick='Jóvenes Profesionales · '+cuando+(d?longDay.format(d):'');
+  var hora=j.horaInicio?j.horaInicio+(j.horaFin?' a '+j.horaFin:''):'';
+  var acts=jpSortAct(j.actividades),tr=j.traslado||{};
   var ll=Array.isArray(j.llevar)?j.llevar:[],listos=ll.filter(function(x){return x.listo;}).length;
-  var llHtml=ll.length?'<ul class="cl">'+ll.map(function(x){
-    return '<li class="'+(x.listo?'done':'')+'"><button type="button" class="cbtn" data-act="jpck" data-j="'+esc(j.id)+'" data-it="'+esc(x.id)+'" role="checkbox" aria-checked="'+(!!x.listo)+'" aria-label="'+esc(x.item)+(x.listo?': listo':': pendiente')+'">'+
-      '<span class="cmark">'+(x.listo?ic('check',13):'')+'</span><span class="cname">'+esc(x.item)+'</span></button></li>';}).join('')+'</ul>':'<p class="none">La lista está vacía.</p>';
-  var as=Array.isArray(j.asistentes)?j.asistentes:[],q=nz(state.jpq[j.id]||'');
+  var as=Array.isArray(j.asistentes)?j.asistentes:[];
+  var tel=function(t){return String(t||'').replace(/[^\d+]/g,'');};
+  /* Encabezado oscuro con los datos clave */
+  var stats=[[as.length,as.length===1?'asistente':'asistentes'],[acts.length,acts.length===1?'actividad':'actividades']];
+  if(tr.salidaHora)stats.push([tr.salidaHora,'sale el bus'+(tr.salidaLugar?' desde '+tr.salidaLugar:'')]);
+  if(ll.length)stats.push([listos+' de '+ll.length,ll.length===1?'cosa lista para llevar':'cosas listas para llevar']);
+  var edit=ADMIN?'<button class="btn hx-ghost" data-act="edit" data-kind="jp" data-id="'+esc(j.id)+'">'+ic('pencil',16)+'Editar jornada</button>':'<a class="btn hx-ghost" href="admin.html">'+ic('pencil',16)+'Editar jornada</a>';
+  var hero='<section class="hx-hero jp-hero"><div class="jp-hero-top"><div class="hx-hero-main"><div class="hx-kicker">'+esc(cap(kick))+'</div>'+
+    '<h2 class="hx-title">'+esc(j.titulo||'Jornada Jóvenes Profesionales')+'</h2>'+
+    ((hora||j.lugar)?'<p class="hx-meta">'+(hora?'<span>'+esc(hora)+'</span>':'')+(j.lugar?'<span>'+esc(j.lugar)+'</span>':'')+'</p>':'')+'</div>'+
+    '<div class="hx-actions">'+(!past&&d?'<button class="btn hx-primary" data-act="cal" data-id="'+esc(j.id)+'">Agregar al calendario</button>':'')+edit+'</div></div>'+
+    '<div class="jp-stats">'+stats.map(function(x){return '<div><b>'+esc(String(x[0]))+'</b><span>'+esc(x[1])+'</span></div>';}).join('')+'</div></section>';
+  /* Programa */
+  var prog='<section class="jp-card"><h3>Programa</h3>'+(acts.length?'<ol class="jp-tl">'+acts.map(function(a){
+    return '<li><span class="jp-th">'+esc(a.hora||'—')+'</span><span class="jp-dot" aria-hidden="true"></span><span class="jp-tt">'+esc(a.actividad)+'</span></li>';}).join('')+'</ol>':'<p class="none">Aún no hay actividades.</p>')+'</section>';
+  /* Traslado */
+  var rows=[['Bus',tr.bus],['Marca',tr.marca],['Chofer',tr.chofer]].filter(function(r){return r[1];});
+  var trHtml='<section class="jp-card"><h3>Traslado</h3>'+
+    (tr.salidaHora?'<div class="jp-dep"><span class="jp-dep-k">Salida del bus</span><span class="jp-dep-h">'+esc(tr.salidaHora)+'</span>'+(tr.salidaLugar?'<span class="jp-dep-l">Desde '+esc(tr.salidaLugar)+'</span>':'')+'</div>':'')+
+    (rows.length?'<dl class="jp-dl">'+rows.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+esc(r[1])+'</dd>';}).join('')+'</dl>':'')+
+    (tr.telefono?'<a class="btn jp-call" href="tel:'+esc(tel(tr.telefono))+'">'+ic('phone',17)+'Llamar al chofer · '+esc(tr.telefono)+'</a>':'')+
+    (!tr.salidaHora&&!rows.length&&!tr.telefono?'<p class="none">Sin traslado definido.</p>':'')+'</section>';
+  /* Qué llevar */
+  var pct=ll.length?Math.round(listos/ll.length*100):0;
+  var llHtml='<section class="jp-card"><div class="jp-h3row"><h3>Qué llevar</h3>'+(ll.length?'<span class="jp-prog">'+listos+' de '+ll.length+' listo'+(ll.length===1?'':'s')+'</span>':'')+'</div>'+
+    (ll.length?'<div class="jp-bar" role="img" aria-label="'+pct+'% listo"><i style="width:'+pct+'%"></i></div><ul class="cl jp-cl">'+ll.map(function(x){
+      return '<li class="'+(x.listo?'done':'')+'"><button type="button" class="cbtn" data-act="jpck" data-j="'+esc(j.id)+'" data-it="'+esc(x.id)+'" role="checkbox" aria-checked="'+(!!x.listo)+'" aria-label="'+esc(x.item)+(x.listo?': listo':': pendiente')+'">'+
+        '<span class="cmark">'+(x.listo?ic('check',13):'')+'</span><span class="cname">'+esc(x.item)+'</span></button></li>';}).join('')+'</ul>':'<p class="none">La lista está vacía.</p>')+'</section>';
+  /* Asistentes */
+  var q=nz(state.jpq[j.id]||''),all=!!(state.jpAll&&state.jpAll[j.id]);
   var asf=q?as.filter(function(a){return nz([a.nombre,a.area,a.correo].join(' ')).indexOf(q)>-1;}):as;
-  var asHtml=as.length?(as.length>8?searchBox('jq-'+j.id,'Buscar asistente',state.jpq[j.id]||'','Buscar asistente'):'')+
-    (asf.length?'<div class="jtable"><table><thead><tr><th>Nombre</th><th>Área</th><th>Correo</th><th>Teléfono</th></tr></thead><tbody>'+asf.map(function(a){
-      return '<tr><td><b>'+esc(a.nombre)+'</b></td><td>'+esc(a.area||'')+'</td><td>'+(a.correo?'<a href="mailto:'+esc(a.correo)+'">'+esc(a.correo)+'</a>':'')+'</td><td>'+(a.telefono?'<a href="tel:'+esc(String(a.telefono).replace(/[^\d+]/g,''))+'">'+esc(a.telefono)+'</a>':'')+'</td></tr>';
+  var shown=(q||all)?asf:asf.slice(0,8);
+  var ini=function(n){var p=String(n||'').trim().split(/\s+/);return ((p[0]||'').charAt(0)+(p.length>1?p[p.length-1].charAt(0):'')).toUpperCase();};
+  var asHtml='<section class="jp-card jp-asis"><div class="jp-ashead"><h3>Asistentes <span>('+as.length+')</span></h3>'+
+    (as.length?'<div class="jp-astools">'+searchBox('jq-'+j.id,'Buscar por nombre o área',state.jpq[j.id]||'','Buscar asistente')+
+      '<button class="btn" data-act="jpcsv" data-j="'+esc(j.id)+'">'+ic('down',16)+'Descargar lista</button></div>':'')+'</div>'+
+    (as.length?(shown.length?'<div class="jtable"><table><thead><tr><th>Nombre</th><th>Área</th><th>Correo</th><th>Teléfono</th></tr></thead><tbody>'+shown.map(function(a){
+      return '<tr><td><span class="jp-who"><span class="av lg" style="--h:'+hue(String(a.nombre))+'" aria-hidden="true">'+esc(ini(a.nombre))+'</span><b>'+esc(a.nombre)+'</b></span></td>'+
+        '<td>'+(a.area?'<span class="pill mat">'+esc(a.area)+'</span>':'')+'</td>'+
+        '<td>'+(a.correo?'<a href="mailto:'+esc(a.correo)+'">'+esc(a.correo)+'</a>':'')+'</td>'+
+        '<td>'+(a.telefono?'<a href="tel:'+esc(tel(a.telefono))+'">'+esc(a.telefono)+'</a>':'')+'</td></tr>';
     }).join('')+'</tbody></table></div>':'<p class="none">Nadie coincide con la búsqueda.</p>')+
-    '<button class="linkbtn jcsv" data-act="jpcsv" data-j="'+esc(j.id)+'">'+ic('down',15)+'Descargar lista</button>'
-    :'<p class="none">Aún no hay asistentes.'+(ADMIN?' Agrégalos en Editar o impórtalos desde Excel.':'')+'</p>';
-  var kl='jl:'+j.id,ka='ja:'+j.id;
-  return '<article class="jcard'+(past?' past':'')+'">'+
-    '<div class="jhead"><div class="date">'+date+'</div><div class="jmain"><div class="name">'+esc(j.titulo||'Jornada Jóvenes Profesionales')+'</div>'+
-      '<div class="jmeta">'+(hora?'<span>'+ic('clock',15)+esc(hora)+'</span>':'')+(j.lugar?'<span>'+ic('pin',15)+esc(j.lugar)+'</span>':'')+'</div>'+
-      '<div class="tags">'+cuando+'<span class="pill mat">'+as.length+(as.length===1?' asistente':' asistentes')+'</span></div>'+calBtn(j,past)+'</div>'+
-      (ADMIN?'<div class="act">'+editBtn('jp',j.id,j.titulo||'jornada')+'</div>':'')+'</div>'+
-    '<div class="jgrid">'+
-      '<section class="jsec"><h3>'+ic('clock',16)+'Programa</h3>'+prog+'</section>'+
-      '<section class="jsec"><h3>'+ic('pin',16)+'Traslado</h3>'+trHtml+'</section>'+
-    '</div>'+
-    '<details class="notebox jdet" data-note="'+kl+'"'+(state.openNotes[kl]?' open':'')+'><summary>Qué llevar ('+listos+'/'+ll.length+' listo'+(ll.length===1?'':'s')+')</summary>'+llHtml+'</details>'+
-    '<details class="notebox jdet" data-note="'+ka+'"'+(state.openNotes[ka]?' open':'')+'><summary>Asistentes ('+as.length+')</summary>'+asHtml+'</details>'+
-    (j.notas?'<details class="notebox jdet" data-note="jn:'+esc(j.id)+'"'+(state.openNotes['jn:'+j.id]?' open':'')+'><summary>Notas</summary><div class="notetext">'+esc(j.notas)+'</div></details>':'')+
-  '</article>';
+    (!q&&asf.length>8?'<button class="linkbtn jp-more" data-act="jpall" data-j="'+esc(j.id)+'">'+(all?'Mostrar menos':'Ver los '+asf.length+' asistentes')+'</button>':'')
+    :'<p class="none">Aún no hay asistentes.'+(ADMIN?' Agrégalos en Editar jornada o impórtalos desde Excel.':'')+'</p>')+'</section>';
+  var notas=j.notas?'<details class="notebox jdet" data-note="jn:'+esc(j.id)+'"'+(state.openNotes['jn:'+j.id]?' open':'')+'><summary>Notas</summary><div class="notetext">'+esc(j.notas)+'</div></details>':'';
+  return '<article class="jp-event'+(past?' past':'')+'">'+hero+'<div class="jp-grid">'+prog+trHtml+llHtml+'</div>'+asHtml+notas+'</article>';
 }
 function renderJP(){
   var el=$('panel-jp');if(!el||stateBlock(el))return;
@@ -1538,6 +1555,7 @@ document.addEventListener('click',function(e){
   if(act==='agdel'){agDelete();return;}
   if(act==='wk'){var v=+b.getAttribute('data-v');state.wk=v===0?0:state.wk+v;renderInicio();return;}
   if(act==='jpck'){toggleLlevar(b.getAttribute('data-j'),b.getAttribute('data-it'));return;}
+  if(act==='jpall'){var jid=b.getAttribute('data-j');state.jpAll=state.jpAll||{};state.jpAll[jid]=!state.jpAll[jid];renderJP();return;}
   if(act==='jpcsv'){jpCsv(b.getAttribute('data-j'));return;}
   if(act==='ladd'){jlAdd(b.getAttribute('data-l'));return;}
   if(act==='ldel'){if(state.edit&&state.edit.L){state.edit.L[b.getAttribute('data-l')].splice(+b.getAttribute('data-i'),1);jlPaint(b.getAttribute('data-l'));}return;}
