@@ -285,10 +285,10 @@ function renderTabs(){
   var sel=$('tabs').querySelector('[aria-selected="true"]');if(sel&&sel.scrollIntoView){try{sel.scrollIntoView({inline:'center',block:'nearest'});}catch(e){}}
   var sb=$('subtabs');
   sb.hidden=state.tab!=='ferias';
-  sb.innerHTML='<button class="fchip" role="tab" data-act="sub" data-v="calendario" aria-selected="'+(state.sub==='calendario')+'" aria-pressed="'+(state.sub==='calendario')+'">Calendario</button>'+
-    (window.CandHooks?'<button class="fchip" role="tab" data-act="sub" data-v="candidatos" aria-selected="'+(state.sub==='candidatos')+'" aria-pressed="'+(state.sub==='candidatos')+'">Candidatos'+(window.CandHooks.badge()?'<span class="n">'+window.CandHooks.badge()+'</span>':'')+'</button>':'')+
-    '<button class="fchip" role="tab" data-act="sub" data-v="directorio" aria-selected="'+(state.sub==='directorio')+'" aria-pressed="'+(state.sub==='directorio')+'">Directorio</button>'+
-    '<button class="fchip" role="tab" data-act="sub" data-v="asistencia" aria-selected="'+(state.sub==='asistencia')+'" aria-pressed="'+(state.sub==='asistencia')+'">Asistencia</button>';
+  sb.innerHTML='<button class="fchip" role="tab" data-act="sub" data-v="calendario" aria-selected="'+(state.sub==='calendario')+'" aria-pressed="'+(state.sub==='calendario')+'">'+ic('cal',16)+'Calendario</button>'+
+    (window.CandHooks?'<button class="fchip" role="tab" data-act="sub" data-v="candidatos" aria-selected="'+(state.sub==='candidatos')+'" aria-pressed="'+(state.sub==='candidatos')+'">'+ic('users',16)+'Candidatos'+(window.CandHooks.badge()?'<span class="n">'+window.CandHooks.badge()+'</span>':'')+'</button>':'')+
+    '<button class="fchip" role="tab" data-act="sub" data-v="directorio" aria-selected="'+(state.sub==='directorio')+'" aria-pressed="'+(state.sub==='directorio')+'">'+ic('book',16)+'Directorio</button>'+
+    '<button class="fchip" role="tab" data-act="sub" data-v="asistencia" aria-selected="'+(state.sub==='asistencia')+'" aria-pressed="'+(state.sub==='asistencia')+'">'+ic('check',16)+'Asistencia</button>';
   $('panel-ferias').hidden=!(state.tab==='ferias'&&state.sub==='calendario');
   $('panel-inicio').hidden=state.tab!=='inicio';
   $('panel-cumpleanos').hidden=state.tab!=='cumpleanos';

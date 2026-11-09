@@ -473,3 +473,15 @@ html.locked .gate{display:block}
 .candlink{gap:6px;flex-wrap:wrap}
 .candlink .pill{margin-left:2px}
 .fg-add{display:inline-flex;align-items:center;gap:6px;margin-top:10px}
+
+/* ---------- Sub-secciones de Ferias, bien visibles ---------- */
+.subtabs{display:flex;flex-wrap:nowrap;gap:4px;margin-top:-4px;padding:4px;border:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow-sm);overflow-x:auto;scrollbar-width:none}
+.subtabs::-webkit-scrollbar{display:none}
+.subtabs .fchip{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;margin:0;padding:10px 14px;border:0;border-radius:10px;background:none;color:color-mix(in srgb,var(--ink) 78%,transparent);font:600 14.5px var(--f-body);white-space:nowrap;min-height:42px}
+.subtabs .fchip .ic{opacity:.85}
+.subtabs .fchip:hover{background:var(--surface-2);color:var(--ink)}
+.subtabs .fchip[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-strong);border:0;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent)}
+.subtabs .fchip[aria-pressed="true"] .ic{opacity:1}
+.subtabs .fchip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.subtabs .fchip .n{margin-left:2px}
+@media (max-width:760px){.subtabs{display:grid;grid-template-columns:1fr 1fr;overflow:visible}.subtabs .fchip{padding:9px 10px;font-size:14px}}
