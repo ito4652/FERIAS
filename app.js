@@ -3,7 +3,7 @@
 /* Modo "view": solo lectura (index.html). Modo "admin": edita en el navegador y publica en Supabase (admin.html). */
 var ADMIN=document.documentElement.getAttribute('data-mode')==='admin';
 var DRAFT_KEY='ferias-borrador-v1';
-var state={sub:'calendario',ferias:[],contactos:[],cumpleanos:[],avisos:[],plataformas:[],eventosdo:[],equipo:[],pq:'',dq:'',eq:'',status:'loading',published:'',updated:'',tab:'inicio',q:'',estado:'todos',cq:'',cuq:'',
+var state={sub:'calendario',jornadas:[],jpq:{},ferias:[],contactos:[],cumpleanos:[],avisos:[],plataformas:[],eventosdo:[],equipo:[],pq:'',dq:'',eq:'',status:'loading',published:'',updated:'',tab:'inicio',q:'',estado:'todos',cq:'',cuq:'',
   edit:null,armed:false,discardArmed:false,lastLoad:0};
 var ESTADOS={confirmada:['Confirmada','ok'],porconfirmar:['Por confirmar','warn'],cancelada:['Cancelada','bad']};
 var MATERIALES={pendon:'Pendón',stand:'Stand',nada:'Nada'};
@@ -54,12 +54,13 @@ function sig(){
   if(state.plataformas.length) o.plataformas=state.plataformas.slice().sort(byId);
   if(state.eventosdo.length) o.eventosdo=state.eventosdo.slice().sort(byId);
   if(state.equipo.length) o.equipo=state.equipo.slice().sort(byId);
+  if(state.jornadas.length) o.jornadas=state.jornadas.slice().sort(byId);
   return JSON.stringify(canon(o));
 }
 function isDirty(){return ADMIN&&state.status==='ok'&&sig()!==state.published;}
 function norm(arr){return (Array.isArray(arr)?arr:[]).filter(function(r){return r&&typeof r==='object';}).map(function(r){if(!r.id)r.id=newId();return r;});}
 
-try{var saved=localStorage.getItem('ferias-tab');if(saved==='inicio'||saved==='ferias'||saved==='cumpleanos'||saved==='plataformas'||saved==='do'||saved==='equipo')state.tab=saved;else if(saved==='candidatos'){state.tab='ferias';state.sub='candidatos';}else if(saved==='contactos'){state.tab='ferias';state.sub='directorio';}
+try{var saved=localStorage.getItem('ferias-tab');if(saved==='inicio'||saved==='ferias'||saved==='cumpleanos'||saved==='plataformas'||saved==='do'||saved==='equipo'||saved==='jp')state.tab=saved;else if(saved==='candidatos'){state.tab='ferias';state.sub='candidatos';}else if(saved==='contactos'){state.tab='ferias';state.sub='directorio';}
   var ssub=localStorage.getItem('ferias-sub');if(ssub==='calendario'||ssub==='directorio'||ssub==='asistencia'||ssub==='candidatos')state.sub=ssub;}catch(e){}
 $('brand').innerHTML=ic('cal',24);
 if(!$('panel-inicio')){
@@ -73,7 +74,7 @@ if(!$('panel-inicio')){
   pa.id='panel-'+k;pa.className='panel';pa.setAttribute('role','tabpanel');pa.hidden=true;
   $('panel-contactos').after(pa);
 });
-['candidatos','plataformas','do','equipo'].forEach(function(k){
+['jp','candidatos','plataformas','do','equipo'].forEach(function(k){
   if($('panel-'+k))return;
   var pp=document.createElement('section');
   pp.id='panel-'+k;pp.className='panel';pp.setAttribute('role','tabpanel');pp.hidden=true;
@@ -92,9 +93,9 @@ if(!$('subtabs')){var st=document.createElement('div');st.id='subtabs';st.classN
 var CACHE_KEY='datos-cache';
 function applyData(d){
   d=d||{};
-  state.ferias=norm(d.ferias);state.contactos=norm(d.contactos);state.cumpleanos=norm(d.cumpleanos);state.avisos=norm(d.avisos);state.plataformas=norm(d.plataformas);state.eventosdo=norm(d.eventosdo);state.equipo=norm(d.equipo);
+  state.ferias=norm(d.ferias);state.contactos=norm(d.contactos);state.cumpleanos=norm(d.cumpleanos);state.avisos=norm(d.avisos);state.plataformas=norm(d.plataformas);state.eventosdo=norm(d.eventosdo);state.equipo=norm(d.equipo);state.jornadas=norm(d.jornadas);
 }
-var KEYS=['ferias','contactos','cumpleanos','avisos','plataformas','eventosdo','equipo'];
+var KEYS=['ferias','contactos','cumpleanos','avisos','plataformas','eventosdo','equipo','jornadas'];
 function clone(o){return JSON.parse(JSON.stringify(o));}
 function pick(d){var o={};KEYS.forEach(function(k){o[k]=clone((d&&d[k])||[]);});return o;}
 function snap(){return pick(state);}
@@ -165,7 +166,7 @@ async function load(){
   if(merged) toast('Otra persona publicó cambios: se combinaron con los tuyos. Revisa y pulsa Publicar.');
 }
 function buildOut(){
-  return {actualizado:new Date().toISOString(),ferias:state.ferias.slice().sort(cmpFeria),cumpleanos:state.cumpleanos.slice().sort(cmpFeria),avisos:state.avisos.slice().sort(byId),plataformas:state.plataformas.slice().sort(byName),equipo:state.equipo.slice().sort(byCargo),eventosdo:state.eventosdo.slice().sort(cmpFeria),contactos:state.contactos.slice().sort(byName)};
+  return {actualizado:new Date().toISOString(),ferias:state.ferias.slice().sort(cmpFeria),cumpleanos:state.cumpleanos.slice().sort(cmpFeria),avisos:state.avisos.slice().sort(byId),plataformas:state.plataformas.slice().sort(byName),equipo:state.equipo.slice().sort(byCargo),eventosdo:state.eventosdo.slice().sort(cmpFeria),contactos:state.contactos.slice().sort(byName),jornadas:state.jornadas.slice().sort(cmpFeria)};
 }
 async function publish(){
   if(!ADMIN||state.publishing||!isDirty())return;
@@ -268,7 +269,7 @@ function persist(){
   if(!ADMIN)return;
   try{
     if(sig()===state.published) localStorage.removeItem(DRAFT_KEY);
-    else localStorage.setItem(DRAFT_KEY,JSON.stringify({base:state.published,baseData:state.baseData,ferias:state.ferias,contactos:state.contactos,cumpleanos:state.cumpleanos,avisos:state.avisos,plataformas:state.plataformas,eventosdo:state.eventosdo,equipo:state.equipo}));
+    else localStorage.setItem(DRAFT_KEY,JSON.stringify({base:state.published,baseData:state.baseData,ferias:state.ferias,contactos:state.contactos,cumpleanos:state.cumpleanos,avisos:state.avisos,plataformas:state.plataformas,eventosdo:state.eventosdo,equipo:state.equipo,jornadas:state.jornadas}));
   }catch(e){}
 }
 
@@ -279,6 +280,7 @@ function renderTabs(){
     '<button class="tab" role="tab" data-act="tab" data-tab="inicio" aria-selected="'+(state.tab==='inicio')+'">Inicio</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="ferias" aria-selected="'+(state.tab==='ferias')+'">Ferias<span class="n">'+(window.CandHooks?window.CandHooks.badge():'')+'</span></button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="cumpleanos" aria-selected="'+(state.tab==='cumpleanos')+'">Cumpleaños</button>'+
+    '<button class="tab" role="tab" data-act="tab" data-tab="jp" aria-selected="'+(state.tab==='jp')+'" title="Jóvenes Profesionales">JP</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="do" aria-selected="'+(state.tab==='do')+'">DO</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="plataformas" aria-selected="'+(state.tab==='plataformas')+'">Plataformas</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="equipo" aria-selected="'+(state.tab==='equipo')+'">Equipo</button>';
@@ -294,6 +296,7 @@ function renderTabs(){
   $('panel-cumpleanos').hidden=state.tab!=='cumpleanos';
   $('panel-plataformas').hidden=state.tab!=='plataformas';
   $('panel-do').hidden=state.tab!=='do';
+  $('panel-jp').hidden=state.tab!=='jp';
   $('panel-equipo').hidden=state.tab!=='equipo';
   $('panel-candidatos').hidden=!(state.tab==='ferias'&&state.sub==='candidatos');
   $('panel-contactos').hidden=!(state.tab==='ferias'&&state.sub==='directorio');
@@ -339,6 +342,203 @@ function feriaRow(f,past,isNext){
   '</div>';
 }
 /* ---------- Calendario ---------- */
+/* ---------- Jóvenes Profesionales (JP) ----------
+   Jornada de un día con charlas, actividades y almuerzo: lugar, fecha y hora, programa, traslado,
+   qué llevar (se marca con un toque) y asistentes (editables e importables desde Excel). */
+function jpEvent(j){
+  var prog=jpSortAct(j.actividades).map(function(a){return (a.hora?a.hora+' ':'')+a.actividad;}).join('\n');
+  return {id:j.id,nombre:'Jornada JP: '+(j.titulo||'Jóvenes Profesionales'),fecha:j.fecha,horaInicio:j.horaInicio||'',horaFin:j.horaFin||'',lugar:j.lugar||'',responsables:'',estado:'',material:'',notas:prog,sinEstado:true};
+}
+function jpSortAct(a){return (Array.isArray(a)?a:[]).slice().sort(function(x,y){var p=x.hora||'99',q=y.hora||'99';return p<q?-1:p>q?1:0;});}
+function jpCard(j,past){
+  var d=parseDate(j.fecha),t=todayStr();
+  var date=d?'<div class="d-num">'+d.getDate()+'</div><div class="d-mon">'+esc(monFmt.format(d).replace('.',''))+'</div><div class="d-wd">'+esc(wdFmt.format(d).replace('.',''))+'</div>':'<div class="d-num">—</div>';
+  var hora=j.horaInicio?j.horaInicio+(j.horaFin?' – '+j.horaFin:''):'';
+  var dd=d?Math.round((d-parseDate(t))/864e5):null;
+  var cuando=dd===null||past?'':dd===0?'<span class="pill warn">Hoy</span>':dd===1?'<span class="pill warn">Mañana</span>':'<span class="pill mat">En '+dd+' días</span>';
+  var acts=jpSortAct(j.actividades);
+  var prog=acts.length?'<ol class="jtl">'+acts.map(function(a){return '<li><span class="jt">'+esc(a.hora||'—')+'</span><span class="ja">'+esc(a.actividad)+'</span></li>';}).join('')+'</ol>':'<p class="none">Aún no hay actividades.</p>';
+  var tr=j.traslado||{},trs=[['Bus',tr.bus],['Marca',tr.marca],['Chofer',tr.chofer],['Contacto',tr.telefono?'<a href="tel:'+esc(String(tr.telefono).replace(/[^\d+]/g,''))+'">'+esc(tr.telefono)+'</a>':''],['Salida',[tr.salidaHora,tr.salidaLugar].filter(Boolean).map(esc).join(', ')]]
+    .filter(function(r){return r[1];});
+  var trHtml=trs.length?'<dl class="jdl">'+trs.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+(r[0]==='Bus'||r[0]==='Marca'||r[0]==='Chofer'?esc(r[1]):r[1])+'</dd>';}).join('')+'</dl>':'<p class="none">Sin traslado definido.</p>';
+  var ll=Array.isArray(j.llevar)?j.llevar:[],listos=ll.filter(function(x){return x.listo;}).length;
+  var llHtml=ll.length?'<ul class="cl">'+ll.map(function(x){
+    return '<li class="'+(x.listo?'done':'')+'"><button type="button" class="cbtn" data-act="jpck" data-j="'+esc(j.id)+'" data-it="'+esc(x.id)+'" role="checkbox" aria-checked="'+(!!x.listo)+'" aria-label="'+esc(x.item)+(x.listo?': listo':': pendiente')+'">'+
+      '<span class="cmark">'+(x.listo?ic('check',13):'')+'</span><span class="cname">'+esc(x.item)+'</span></button></li>';}).join('')+'</ul>':'<p class="none">La lista está vacía.</p>';
+  var as=Array.isArray(j.asistentes)?j.asistentes:[],q=nz(state.jpq[j.id]||'');
+  var asf=q?as.filter(function(a){return nz([a.nombre,a.area,a.correo].join(' ')).indexOf(q)>-1;}):as;
+  var asHtml=as.length?(as.length>8?searchBox('jq-'+j.id,'Buscar asistente',state.jpq[j.id]||'','Buscar asistente'):'')+
+    (asf.length?'<div class="jtable"><table><thead><tr><th>Nombre</th><th>Área</th><th>Correo</th><th>Teléfono</th></tr></thead><tbody>'+asf.map(function(a){
+      return '<tr><td><b>'+esc(a.nombre)+'</b></td><td>'+esc(a.area||'')+'</td><td>'+(a.correo?'<a href="mailto:'+esc(a.correo)+'">'+esc(a.correo)+'</a>':'')+'</td><td>'+(a.telefono?'<a href="tel:'+esc(String(a.telefono).replace(/[^\d+]/g,''))+'">'+esc(a.telefono)+'</a>':'')+'</td></tr>';
+    }).join('')+'</tbody></table></div>':'<p class="none">Nadie coincide con la búsqueda.</p>')+
+    '<button class="linkbtn jcsv" data-act="jpcsv" data-j="'+esc(j.id)+'">'+ic('down',15)+'Descargar lista</button>'
+    :'<p class="none">Aún no hay asistentes.'+(ADMIN?' Agrégalos en Editar o impórtalos desde Excel.':'')+'</p>';
+  var kl='jl:'+j.id,ka='ja:'+j.id;
+  return '<article class="jcard'+(past?' past':'')+'">'+
+    '<div class="jhead"><div class="date">'+date+'</div><div class="jmain"><div class="name">'+esc(j.titulo||'Jornada Jóvenes Profesionales')+'</div>'+
+      '<div class="jmeta">'+(hora?'<span>'+ic('clock',15)+esc(hora)+'</span>':'')+(j.lugar?'<span>'+ic('pin',15)+esc(j.lugar)+'</span>':'')+'</div>'+
+      '<div class="tags">'+cuando+'<span class="pill mat">'+as.length+(as.length===1?' asistente':' asistentes')+'</span></div>'+calBtn(j,past)+'</div>'+
+      (ADMIN?'<div class="act">'+editBtn('jp',j.id,j.titulo||'jornada')+'</div>':'')+'</div>'+
+    '<div class="jgrid">'+
+      '<section class="jsec"><h3>'+ic('clock',16)+'Programa</h3>'+prog+'</section>'+
+      '<section class="jsec"><h3>'+ic('pin',16)+'Traslado</h3>'+trHtml+'</section>'+
+    '</div>'+
+    '<details class="notebox jdet" data-note="'+kl+'"'+(state.openNotes[kl]?' open':'')+'><summary>Qué llevar ('+listos+'/'+ll.length+' listo'+(ll.length===1?'':'s')+')</summary>'+llHtml+'</details>'+
+    '<details class="notebox jdet" data-note="'+ka+'"'+(state.openNotes[ka]?' open':'')+'><summary>Asistentes ('+as.length+')</summary>'+asHtml+'</details>'+
+    (j.notas?'<details class="notebox jdet" data-note="jn:'+esc(j.id)+'"'+(state.openNotes['jn:'+j.id]?' open':'')+'><summary>Notas</summary><div class="notetext">'+esc(j.notas)+'</div></details>':'')+
+  '</article>';
+}
+function renderJP(){
+  var el=$('panel-jp');if(!el||stateBlock(el))return;
+  var t=todayStr(),js=state.jornadas.slice().sort(cmpFeria);
+  var up=js.filter(function(j){return !j.fecha||j.fecha>=t;}),past=js.filter(function(j){return j.fecha&&j.fecha<t;}).reverse();
+  var head='<div class="toolbar jp-intro"><div class="jp-title"><h2>Jóvenes Profesionales</h2><p>Jornada de un día con charlas, actividades y almuerzo.</p></div>'+
+    (ADMIN?'<button class="btn primary" data-act="new" data-kind="jp">'+ic('plus',17)+'Nueva jornada</button>':'')+'</div>';
+  var body;
+  if(!js.length) body=emptyBlock('users',ADMIN?'Aún no hay jornadas':'Aún no hay jornadas JP',ADMIN?'Crea la jornada con lugar, fecha, programa, traslado, qué llevar y asistentes. Luego pulsa Publicar.':'Cuando se programe una jornada, la verás aquí.',ADMIN?'<button class="btn primary" data-act="new" data-kind="jp">'+ic('plus',17)+'Nueva jornada</button>':'');
+  else body=up.map(function(j){return jpCard(j,false);}).join('')+(up.length?'':'<p class="none">No hay jornadas próximas.</p>')+
+    (past.length?'<details class="pastbox"><summary>Jornadas anteriores ('+past.length+')</summary><div class="stack">'+past.map(function(j){return jpCard(j,true);}).join('')+'</div></details>':'');
+  var a=document.activeElement,aid=a&&a.id&&a.id.indexOf('jq-')===0?a.id:'';
+  keepFocus(aid,head+'<div class="stack">'+body+'</div>',el);
+}
+/* Formulario: listas editables (programa, qué llevar y asistentes). */
+var JPL={
+  act:{cols:[['hora','time','Hora',''],['actividad','text','Actividad','Ej: Charla de bienvenida']],add:'Agregar actividad',empty:'Sin actividades.'},
+  llevar:{cols:[['listo','check','Listo'],['item','text','Qué llevar','Ej: Credenciales']],add:'Agregar a la lista',empty:'La lista está vacía.'},
+  asis:{cols:[['nombre','text','Nombre','Nombre y apellido'],['area','text','Área','Área o gerencia'],['correo','email','Correo','Correo'],['telefono','tel','Teléfono','Teléfono']],add:'Agregar asistente',empty:'Sin asistentes. Agrégalos uno a uno o importa un Excel.'}
+};
+function jpLists(rec){
+  var cp=function(a){return (Array.isArray(a)?a:[]).map(function(x){var o={};for(var k in x)o[k]=x[k];if(!o.id)o.id=newId();return o;});};
+  return {act:cp(jpSortAct(rec.actividades)),llevar:cp(rec.llevar),asis:cp(rec.asistentes)};
+}
+function jlHtml(key){
+  var L=state.edit.L[key],cfg=JPL[key];
+  if(!L.length)return '<p class="none">'+cfg.empty+'</p>';
+  return L.map(function(r,i){
+    return '<div class="jlrow jl-'+key+'">'+cfg.cols.map(function(c){
+      if(c[1]==='check')return '<input class="ck" type="checkbox" data-l="'+key+'" data-i="'+i+'" data-f="'+c[0]+'"'+(r[c[0]]?' checked':'')+' aria-label="'+c[2]+'">';
+      return '<input type="'+c[1]+'" data-l="'+key+'" data-i="'+i+'" data-f="'+c[0]+'" value="'+esc(r[c[0]]||'')+'" placeholder="'+esc(c[3]||c[2])+'" aria-label="'+c[2]+'">';
+    }).join('')+'<button type="button" class="iconbtn" data-act="ldel" data-l="'+key+'" data-i="'+i+'" aria-label="Quitar" title="Quitar">'+ic('x',16)+'</button></div>';
+  }).join('');
+}
+function jlBlock(key,label,extra){
+  return '<div class="fld full"><label>'+label+(key==='asis'?' (<span id="jlc-asis">'+state.edit.L.asis.length+'</span>)':'')+'</label>'+
+    '<div class="jlist" id="jl-'+key+'">'+jlHtml(key)+'</div>'+
+    '<div class="jl-actions"><button type="button" class="btn additem" data-act="ladd" data-l="'+key+'">'+ic('plus',16)+JPL[key].add+'</button>'+(extra||'')+'</div></div>';
+}
+function jlPaint(key){var el=$('jl-'+key);if(el)el.innerHTML=jlHtml(key);var c=$('jlc-'+key);if(c)c.textContent=state.edit.L[key].length;}
+function jlAdd(key){
+  if(!state.edit||!state.edit.L)return;
+  state.edit.L[key].push({id:newId()});jlPaint(key);
+  var el=$('jl-'+key),ins=el?el.querySelectorAll('input:not([type=checkbox])'):[];
+  if(ins.length){var row=ins[ins.length-1].closest('.jlrow'),first=row.querySelector('input:not([type=checkbox])');if(first)first.focus();}
+}
+function syncList(t){
+  if(!t||!t.getAttribute||!state.edit||!state.edit.L)return false;
+  var k=t.getAttribute('data-l');if(!k||!state.edit.L[k])return false;
+  var r=state.edit.L[k][+t.getAttribute('data-i')];if(!r)return true;
+  r[t.getAttribute('data-f')]=t.type==='checkbox'?t.checked:t.value;
+  return true;
+}
+function jpForm(rec){
+  var tr=rec.traslado||{};
+  return fld('titulo','Nombre de la jornada','text',rec.titulo||'Jornada Jóvenes Profesionales',{full:true})+
+    fld('fecha','Día','date',rec.fecha)+
+    fld('lugar','Lugar','text',rec.lugar,{ph:'Lugar o dirección'})+
+    fld('horaInicio','Hora de inicio','time',rec.horaInicio)+
+    fld('horaFin','Hora de término','time',rec.horaFin)+
+    jlBlock('act','Actividades (hora y actividad)')+
+    '<div class="fld full jsubt"><label>Traslado</label></div>'+
+    fld('tr_bus','Bus','text',tr.bus,{ph:'Empresa o tipo de bus'})+
+    fld('tr_marca','Marca del bus','text',tr.marca)+
+    fld('tr_chofer','Chofer','text',tr.chofer,{ph:'Nombre del chofer'})+
+    fld('tr_tel','Contacto del chofer','tel',tr.telefono,{ph:'+56 9 1234 5678'})+
+    fld('tr_sh','Hora de salida','time',tr.salidaHora)+
+    fld('tr_sl','Lugar de salida','text',tr.salidaLugar,{ph:'Punto de encuentro'})+
+    jlBlock('llevar','Qué llevar')+
+    jlBlock('asis','Asistentes','<button type="button" class="btn additem" data-act="asisimp">'+ic('down',16)+'Importar Excel</button><input type="file" id="jp-asisfile" accept=".xlsx,.csv" hidden>')+
+    '<div class="fld full"><span class="hint" id="jp-asismsg">Para importar: un Excel o CSV con una columna Nombre y, si quieres, Área, Correo y Teléfono. Los repetidos no se agregan.</span></div>'+
+    fld('notas','Notas','textarea',rec.notas,{full:true});
+}
+function jpEditorReady(){}
+function jpCollect(){
+  var L=state.edit.L,tx=function(v){return String(v==null?'':v).trim();};
+  var d={titulo:val('titulo')||'Jornada Jóvenes Profesionales',fecha:val('fecha'),horaInicio:val('horaInicio'),horaFin:val('horaFin'),lugar:val('lugar'),notas:val('notas'),
+    traslado:{bus:val('tr_bus'),marca:val('tr_marca'),chofer:val('tr_chofer'),telefono:val('tr_tel'),salidaHora:val('tr_sh'),salidaLugar:val('tr_sl')},
+    actividades:jpSortAct(L.act.filter(function(a){return tx(a.actividad);}).map(function(a){return {id:a.id||newId(),hora:tx(a.hora),actividad:tx(a.actividad)};})),
+    llevar:L.llevar.filter(function(x){return tx(x.item);}).map(function(x){return {id:x.id||newId(),item:tx(x.item),listo:!!x.listo};}),
+    asistentes:L.asis.filter(function(x){return tx(x.nombre);}).map(function(x){return {id:x.id||newId(),nombre:tx(x.nombre),area:tx(x.area),correo:tx(x.correo),telefono:tx(x.telefono)};})};
+  if(!d.fecha){ferr('Elige el día de la jornada.');return null;}
+  if(d.horaInicio&&d.horaFin&&d.horaFin<d.horaInicio){ferr('La hora de término es anterior a la de inicio.');return null;}
+  return d;
+}
+/* Importar asistentes desde Excel o CSV, sin duplicar a quienes ya están en la lista. */
+async function importAsis(file){
+  if(!file||!state.edit||!state.edit.L)return;
+  var msg=$('jp-asismsg'),say=function(t){if(msg)msg.textContent=t;};
+  if(!window.ExcelReader){say('No se pudo cargar el lector de Excel. Recarga la página.');return;}
+  try{
+    var rows=await ExcelReader.read(file);
+    var hi=rows.findIndex(function(r){return r&&r.some(function(v){return v!=null&&String(v).trim();});});
+    if(hi<0){say('El archivo está vacío.');return;}
+    var head=rows[hi].map(function(h){return nz(h);});
+    var col=function(re){for(var i=0;i<head.length;i++)if(head[i]&&re.test(head[i]))return i;return -1;};
+    var iN=col(/^(nombre|nombre completo|nombres|asistente|participante|colaborador|colaboradora|trabajador|nombre y apellidos?)$/),
+      iAp=col(/^(apellido|apellidos)$/),iM=col(/^(correo|e-?mail|mail|correo electronico)$/),
+      iT=col(/^(telefono|celular|fono|movil|whatsapp|numero)$/),iA=col(/^(area|gerencia|cargo|departamento|empresa|unidad|sociedad)$/);
+    if(iN<0){say('No encontré una columna “Nombre” en el archivo.');return;}
+    var L=state.edit.L.asis,seen={};
+    L.forEach(function(a){if(a.nombre)seen['n'+nz(a.nombre)]=1;if(a.correo)seen['c'+nz(a.correo)]=1;});
+    var add=0,rep=0,get=function(r,i){return i<0||r[i]==null?'':String(r[i]).trim();};
+    rows.slice(hi+1).forEach(function(r){
+      if(!r)return;
+      var n=get(r,iN);if(iAp>-1&&get(r,iAp))n=(n+' '+get(r,iAp)).trim();
+      if(!n)return;
+      var c=get(r,iM);
+      if(seen['n'+nz(n)]||(c&&seen['c'+nz(c)])){rep++;return;}
+      seen['n'+nz(n)]=1;if(c)seen['c'+nz(c)]=1;
+      var t=get(r,iT);
+      L.push({id:newId(),nombre:n,area:get(r,iA),correo:c,telefono:t&&ExcelReader.phone?ExcelReader.phone(t):t});add++;
+    });
+    jlPaint('asis');
+    say(add+(add===1?' asistente agregado':' asistentes agregados')+(rep?', '+rep+(rep===1?' repetido omitido':' repetidos omitidos'):'')+'. Revisa la lista y pulsa Guardar.');
+  }catch(e){
+    say(String(e&&e.message)==='xls'?'Ese es un Excel antiguo (.xls). Ábrelo y guárdalo como .xlsx.':'No se pudo leer el archivo. Guárdalo como .xlsx o .csv e intenta de nuevo.');
+  }
+}
+/* Marcar "qué llevar" con un toque: se guarda al instante, como las compras de cumpleaños. */
+function setLlevar(jid,iid,val){
+  return function(d){
+    var j=(d.jornadas||[]).filter(function(x){return x.id===jid;})[0];if(!j)return;
+    var it=(j.llevar||[]).filter(function(x){return x.id===iid;})[0];if(it)it.listo=val;
+  };
+}
+function toggleLlevar(jid,iid){
+  if(state.status!=='ok')return;
+  if(state.offline||!navigator.onLine){toast('Sin conexión: no se puede marcar ahora.');return;}
+  var j=state.jornadas.filter(function(x){return x.id===jid;})[0];
+  var it=j&&(j.llevar||[]).filter(function(x){return x.id===iid;})[0];if(!it)return;
+  var val=!it.listo,wasDirty=ADMIN&&isDirty(),mut=setLlevar(jid,iid,val);
+  mut(state);renderAll();
+  quickSave(mut).then(function(res){
+    state.remoteTs=state.updated=res.ts;saveCache(res.contenido,res.ts);
+    if(ADMIN){if(state.baseData)mut(state.baseData);if(!wasDirty){state.published=sig();persist();}}
+    else{applyData(res.contenido);state.published=sig();}
+    renderAll();
+  }).catch(function(e){
+    setLlevar(jid,iid,!val)(state);renderAll();
+    toast(String(e&&e.message)==='ocupado'?'Hay muchos cambios al mismo tiempo. Intenta de nuevo.':dbMsg(e)+' No se guardó el cambio.');
+  });
+}
+function jpCsv(jid){
+  var j=state.jornadas.filter(function(x){return x.id===jid;})[0];if(!j)return;
+  var rows=[['Nombre','Área','Correo','Teléfono']].concat((j.asistentes||[]).map(function(a){return [a.nombre,a.area,a.correo,a.telefono];}));
+  var csv='\uFEFF'+rows.map(function(r){return r.map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}).join(';');}).join('\r\n');
+  var url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  var a=document.createElement('a');a.href=url;a.download='asistentes-jp-'+(j.fecha||todayStr())+'.csv';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},2000);
+  toast('Lista descargada. Contiene datos personales: guárdala en un lugar privado.');
+}
 /* Acceso a los candidatos de cada feria (vienen de candidatos.js). */
 function candLink(f){
   var H=window.CandHooks;if(!H||!H.feriaInfo||f.estado==='cancelada')return '';
@@ -425,6 +625,7 @@ function downloadIcs(f){
 function calItem(id){
   var f=state.ferias.filter(function(r){return r.id===id;})[0];if(f)return f;
   var e=state.eventosdo.filter(function(r){return r.id===id;})[0];if(e){var o={};for(var k in e)o[k]=e[k];o.sinEstado=true;return o;}
+  var jj=state.jornadas.filter(function(r){return r.id===id;})[0];if(jj)return jpEvent(jj);
   var c=state.cumpleanos.filter(function(r){return r.id===id;})[0];return c?cumpleEvent(c):null;
 }
 function openCal(id){
@@ -945,7 +1146,7 @@ function renderFoot(){
   }
   f.innerHTML=h;
 }
-function renderAll(){renderTabs();renderNotice();renderInicio();renderFerias();renderCumples();renderPlataformas();renderDO();renderEquipo();renderAsistencia();renderContactos();renderFoot();}
+function renderAll(){renderTabs();renderNotice();renderInicio();renderFerias();renderCumples();renderPlataformas();renderDO();renderJP();renderEquipo();renderAsistencia();renderContactos();renderFoot();}
 
 /* ---------- Formulario (solo administrador) ---------- */
 function fld(id,label,type,value,o){
@@ -956,7 +1157,7 @@ function fld(id,label,type,value,o){
   else input='<input id="f-'+id+'" type="'+type+'" value="'+esc(value)+'"'+(o.ph?' placeholder="'+esc(o.ph)+'"':'')+(o.attrs?' '+o.attrs:'')+'>';
   return '<div class="fld'+(o.full?' full':'')+'"><label for="f-'+id+'">'+label+'</label>'+input+(o.hint?'<span class="hint">'+o.hint+'</span>':'')+'</div>';
 }
-function arrFor(kind){return kind==='feria'?state.ferias:kind==='cumple'?state.cumpleanos:kind==='aviso'?state.avisos:kind==='plat'?state.plataformas:kind==='evdo'?state.eventosdo:kind==='eq'?state.equipo:state.contactos;}
+function arrFor(kind){return kind==='jp'?state.jornadas:kind==='feria'?state.ferias:kind==='cumple'?state.cumpleanos:kind==='aviso'?state.avisos:kind==='plat'?state.plataformas:kind==='evdo'?state.eventosdo:kind==='eq'?state.equipo:state.contactos;}
 function itemsHtml(){
   var its=state.edit&&state.edit.items?state.edit.items:[];
   if(!its.length) return '<p class="none">Sin artículos. Agrega torta, decoración, regalo u otros.</p>';
@@ -977,9 +1178,11 @@ function syncItem(t){
 function openSheet(kind,id){
   var arr=arrFor(kind);
   var rec=id?(arr.filter(function(r){return r.id===id;})[0]||{}):{};
-  state.edit={kind:kind,id:id||null,items:null,foto:(kind==='eq'&&rec.foto)||'',logo:(kind==='feria'&&rec.logo)||''};state.armed=false;
+  state.edit={kind:kind,id:id||null,items:null,L:kind==='jp'?jpLists(rec):null,foto:(kind==='eq'&&rec.foto)||'',logo:(kind==='feria'&&rec.logo)||''};state.armed=false;
   var f;
-  if(kind==='feria'){
+  if(kind==='jp'){
+    f=jpForm(rec);
+  }else if(kind==='feria'){
     f=fld('nombre','Feria o universidad','text',rec.nombre,{full:true,ph:'Ej: Feria de Postulación Universidad de Chile'})+
       fld('fecha','Fecha','date',rec.fecha)+
       fld('estado','Estado','select',rec.estado||'porconfirmar',{options:Object.keys(ESTADOS),labels:{confirmada:ESTADOS.confirmada[0],porconfirmar:ESTADOS.porconfirmar[0],cancelada:ESTADOS.cancelada[0]}})+
@@ -1043,19 +1246,22 @@ function openSheet(kind,id){
       fld('telefono','Teléfono','tel',rec.telefono)+
       fld('notas','Notas','textarea',rec.notas,{full:true});
   }
-  var title=(id?'Editar ':((kind==='feria'||kind==='plat')?'Nueva ':(kind==='eq'?'Nueva ':'Nuevo ')))+(kind==='feria'?'feria':kind==='cumple'?'cumpleaños':kind==='aviso'?'anuncio':kind==='plat'?'plataforma':kind==='evdo'?'evento':kind==='eq'?'persona':'contacto');
-  $('sheet-root').innerHTML='<div class="backdrop" data-act="backdrop"><form class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" novalidate>'+
+  var title=(id?'Editar ':((kind==='feria'||kind==='plat'||kind==='jp')?'Nueva ':(kind==='eq'?'Nueva ':'Nuevo ')))+(kind==='jp'?'jornada':kind==='feria'?'feria':kind==='cumple'?'cumpleaños':kind==='aviso'?'anuncio':kind==='plat'?'plataforma':kind==='evdo'?'evento':kind==='eq'?'persona':'contacto');
+  $('sheet-root').innerHTML='<div class="backdrop" data-act="backdrop"><form class="sheet'+(kind==='jp'?' wide':'')+'" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" novalidate>'+
     '<h2 id="sheet-title">'+title+'</h2><div class="fields">'+f+'</div><div class="ferr" id="ferr" role="alert"></div>'+
     '<div class="sheet-actions"><button class="btn primary" type="submit">Guardar</button><button class="btn" type="button" data-act="close">Cancelar</button>'+
     '<span class="sp"></span>'+(id?'<button class="btn danger" type="button" data-act="delete" id="del-btn">Eliminar</button>':'')+'</div></form></div>';
   var first=$('f-nombre')||$('f-titulo');if(first)first.focus();
+  if(kind==='jp')jpEditorReady();
 }
 function closeSheet(){$('sheet-root').innerHTML='';state.edit=null;state.armed=false;}
 function val(id){var e=$('f-'+id);return e?e.value.trim():'';}
 function ferr(msg){var e=$('ferr');if(e)e.textContent=msg||'';}
 function collect(kind){
   var d;
-  if(kind==='feria'){
+  if(kind==='jp'){
+    d=jpCollect();if(!d)return null;
+  }else if(kind==='feria'){
     d={nombre:val('nombre'),fecha:val('fecha'),estado:val('estado')||'porconfirmar',horaInicio:val('horaInicio'),horaFin:val('horaFin'),material:val('material'),lugar:val('lugar'),responsables:val('responsables'),notas:val('notas'),logo:state.edit.logo||''};
     if(!d.nombre){ferr('Escribe el nombre de la feria o la universidad.');return null;}
     if(!d.fecha){ferr('Elige la fecha de la feria.');return null;}
@@ -1162,6 +1368,11 @@ document.addEventListener('click',function(e){
   if(act==='copy'){copyText(b.getAttribute('data-text'));return;}
   if(act==='cal'){openCal(b.getAttribute('data-id'));return;}
   if(act==='ics'){var ff=calItem(b.getAttribute('data-id'));if(ff){downloadIcs(ff);closeSheet();}return;}
+  if(act==='jpck'){toggleLlevar(b.getAttribute('data-j'),b.getAttribute('data-it'));return;}
+  if(act==='jpcsv'){jpCsv(b.getAttribute('data-j'));return;}
+  if(act==='ladd'){jlAdd(b.getAttribute('data-l'));return;}
+  if(act==='ldel'){if(state.edit&&state.edit.L){state.edit.L[b.getAttribute('data-l')].splice(+b.getAttribute('data-i'),1);jlPaint(b.getAttribute('data-l'));}return;}
+  if(act==='asisimp'){var af=$('jp-asisfile');if(af){af.value='';af.click();}return;}
   if(act==='ckbuy'){toggleBought(b.getAttribute('data-c'),b.getAttribute('data-it'));return;}
   if(act==='logodel'){if(state.edit){state.edit.logo='';logoPaint();var lf=$('f-logofile');if(lf)lf.value='';var lr=$('f-logoreuse');if(lr)lr.value='';}return;}
   if(act==='photodel'){if(state.edit){state.edit.foto='';var pv=$('photo-prev');if(pv)pv.innerHTML=photoPrev(val('nombre'),'');var fi=$('f-fotofile');if(fi)fi.value='';}return;}
@@ -1184,6 +1395,8 @@ document.addEventListener('toggle',function(e){
 },true);
 document.addEventListener('input',function(e){
   if(syncItem(e.target))return;
+  if(syncList(e.target))return;
+  if(e.target.id&&e.target.id.indexOf('jq-')===0){state.jpq[e.target.id.slice(3)]=e.target.value;renderJP();return;}
   if(e.target.id==='q-eq'){state.eq=e.target.value;renderEquipo();}
   else if(e.target.id==='q-plat'){state.pq=e.target.value;renderPlataformas();}
   else if(e.target.id==='q-do'){state.dq=e.target.value;renderDO();}
@@ -1194,6 +1407,7 @@ document.addEventListener('input',function(e){
 document.addEventListener('change',function(e){
   if(e.target&&e.target.id==='mig-file'){var fl=e.target.files&&e.target.files[0];if(fl)fl.text().then(function(t){var d=null;try{d=JSON.parse(t);}catch(x){}if(d)migrate(d);else{state.migErr='Ese archivo no parece un data.json de esta app.';renderAll();}});return;}
   if(e.target&&e.target.id==='f-fotofile'){loadPhoto(e.target.files&&e.target.files[0]);return;}
+  if(e.target&&e.target.id==='jp-asisfile'){importAsis(e.target.files&&e.target.files[0]);return;}
   if(e.target&&e.target.id==='f-logofile'){loadLogo(e.target.files&&e.target.files[0]);return;}
   if(e.target&&e.target.id==='f-logoreuse'){var src=state.ferias.filter(function(x){return x.id===e.target.value;})[0];if(src&&state.edit){state.edit.logo=src.logo;logoPaint();}return;}
   syncItem(e.target);

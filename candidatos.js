@@ -671,6 +671,8 @@ document.addEventListener('visibilitychange',function(){
 });
 
 var impInput=document.createElement('input');impInput.type='file';impInput.id='c-impfile';impInput.accept='.xlsx,.csv';impInput.hidden=true;document.body.appendChild(impInput);
+/* El lector de Excel también lo usa la sección JP para importar asistentes. */
+window.ExcelReader={read:readSheet,phone:fmtPhone};
 window.CandHooks={badge:badge,inicioBlock:inicioBlock,render:render,feriaInfo:feriaInfo};
 repaint();
 init();
