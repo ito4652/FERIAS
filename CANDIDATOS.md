@@ -111,3 +111,5 @@ Los CV y datos de contacto son datos personales de terceros (Ley 19.628, y la Le
 - al eliminar una ficha, se elimina también su CV;
 - conviene acordar cuánto tiempo se guardan los CV y eliminar periódicamente los candidatos descartados o antiguos;
 - lo recomendable es informar a TI y al área legal que estos datos están en Supabase, para que queden registrados en el inventario de datos de la empresa.
+
+- 
