@@ -883,3 +883,5 @@ html.locked .gate{display:block}
 .cu-hero .cu-wi{background:rgba(240,184,227,.16);color:#F7D6EE}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cu-wi{background:#3A1F35;color:#F0B8E3}}
 @media (max-width:760px){.cu-htitle{font-size:22px}.cu-hside{flex-basis:100%}}
+.cf .cline.cmuted{font-weight:600;color:var(--muted)}
+.itable select{padding:6px 8px;font-size:13px;min-width:120px}

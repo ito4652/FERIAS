@@ -42,6 +42,7 @@ create trigger candidatos_actualizado before update on public.candidatos
 alter table public.candidatos add column if not exists nivel        text;
 alter table public.candidatos add column if not exists area_interes text;
 alter table public.candidatos add column if not exists duracion     text;
+alter table public.candidatos add column if not exists comuna       text;
 
 alter table public.candidatos enable row level security;
 
