@@ -885,3 +885,7 @@ html.locked .gate{display:block}
 @media (max-width:760px){.cu-htitle{font-size:22px}.cu-hside{flex-basis:100%}}
 .cf .cline.cmuted{font-weight:600;color:var(--muted)}
 .itable select{padding:6px 8px;font-size:13px;min-width:120px}
+/* Aviso visual cuando se intenta cerrar un formulario con cambios */
+.sheet.nudge{animation:sheetNudge .45s ease;box-shadow:0 0 0 3px var(--warn),var(--shadow)}
+@keyframes sheetNudge{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+@media (prefers-reduced-motion:reduce){.sheet.nudge{animation:none}}

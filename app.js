@@ -1577,7 +1577,35 @@ function openSheet(kind,id){
   var first=$('f-nombre')||$('f-titulo');if(first)first.focus();
   if(kind==='jp')jpEditorReady();
 }
-function closeSheet(){$('sheet-root').innerHTML='';state.edit=null;state.armed=false;}
+function closeSheet(){$('sheet-root').innerHTML='';state.edit=null;state.armed=false;state.sheetSnap='';}
+/* Protección de formularios: no se cierran solos si ya escribiste algo.
+   Se guarda una "foto" de los campos al abrir y se compara al intentar cerrar con clic afuera o Escape. */
+function sheetSnap(){
+  var f=document.querySelector('#sheet-root form');if(!f)return '';
+  return Array.prototype.map.call(f.querySelectorAll('input,select,textarea'),function(x){
+    return x.type==='checkbox'||x.type==='radio'?(x.checked?'1':'0'):x.type==='file'?String(x.files?x.files.length:0):x.value;
+  }).join('\u0001');
+}
+function sheetDirty(){var f=document.querySelector('#sheet-root form');return !!f&&sheetSnap()!==state.sheetSnap;}
+function tryCloseSheet(){
+  if(!$('sheet-root').firstChild)return;
+  if(sheetDirty()){
+    var sh=document.querySelector('#sheet-root .sheet');
+    if(sh){sh.classList.remove('nudge');void sh.offsetWidth;sh.classList.add('nudge');}
+    toast('Tienes cambios sin guardar. Pulsa Guardar, o Cancelar para descartarlos.');
+    return;
+  }
+  closeSheet();
+}
+(function(){
+  var root=$('sheet-root');
+  if(root&&window.MutationObserver){
+    new MutationObserver(function(){setTimeout(function(){state.sheetSnap=sheetSnap();},0);}).observe(root,{childList:true});
+  }
+})();
+/* Un "clic afuera" solo cuenta si empezó y terminó afuera (al seleccionar texto arrastrando, se suele soltar fuera). */
+var downTarget=null;
+document.addEventListener('pointerdown',function(e){downTarget=e.target;},true);
 function val(id){var e=$('f-'+id);return e?e.value.trim():'';}
 function ferr(msg){var e=$('ferr');if(e)e.textContent=msg||'';}
 function collect(kind){
@@ -1680,7 +1708,7 @@ function copyText(t){
 document.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b)return;
   var act=b.getAttribute('data-act');
-  if(act==='backdrop'){if(e.target===b)closeSheet();return;}
+  if(act==='backdrop'){if(e.target===b&&downTarget===b)tryCloseSheet();return;}
   if(act==='tab'){state.tab=b.getAttribute('data-tab');try{localStorage.setItem('ferias-tab',state.tab);}catch(x){}renderTabs();return;}
   if(act==='goto'){state.tab=b.getAttribute('data-tab');var gs=b.getAttribute('data-sub');if(gs){state.sub=gs;try{localStorage.setItem('ferias-sub',gs);}catch(x){}}try{localStorage.setItem('ferias-tab',state.tab);}catch(x){}renderTabs();window.scrollTo(0,0);return;}
   if(act==='sub'){state.sub=b.getAttribute('data-v');try{localStorage.setItem('ferias-sub',state.sub);}catch(x){}renderTabs();return;}
@@ -1743,7 +1771,7 @@ document.addEventListener('change',function(e){
   if(e.target&&e.target.id==='f-logoreuse'){var src=state.ferias.filter(function(x){return x.id===e.target.value;})[0];if(src&&state.edit){state.edit.logo=src.logo;logoPaint();}return;}
   syncItem(e.target);
 });
-document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!e.defaultPrevented)tryCloseSheet();});
 document.addEventListener('visibilitychange',function(){
   if(!ADMIN&&window.Sesion&&Sesion.user&&document.visibilityState==='visible'&&Date.now()-state.lastLoad>30000) load();
 });
