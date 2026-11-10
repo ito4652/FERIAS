@@ -31,6 +31,7 @@ var P={
   link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   chev:'<path d="m9 6 6 6-6 6"/>',
   chevl:'<path d="m15 6-6 6 6 6"/>',
+  ext:'<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
   users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>'
 };
@@ -1104,34 +1105,51 @@ function renewInfo(s){
   if(n===1) return {txt:'Renueva mañana',cls:'warn',n:n};
   return {txt:'Renueva en '+n+' días',cls:n<=30?'warn':'ok',n:n};
 }
-function platRow(p){
-  var d=parseDate(p.renovacion),r=renewInfo(p.renovacion);
-  var date=d?'<div class="d-num">'+d.getDate()+'</div><div class="d-mon">'+esc(monFmt.format(d).replace('.',''))+'</div><div class="d-wd">'+d.getFullYear()+'</div>':'<div class="d-num">—</div>';
-  var ok=/^https?:\/\//i.test(p.enlace||'');
-  var open=ok?'<a class="btn openbtn" href="'+esc(p.enlace)+'" target="_blank" rel="noopener">'+ic('link',16)+'Abrir plataforma</a>':'<span class="none">Sin enlace</span>';
-  return '<div class="row feria plat'+(ADMIN?'':' noact')+(r.n!==null&&r.n<0?' expired':'')+'">'+
-    '<div class="date">'+date+'</div>'+
-    '<div class="main"><div class="name">'+esc(p.nombre)+'</div><div class="tags"><span class="pill '+r.cls+'">'+r.txt+'</span></div></div>'+
-    '<div class="bud">'+open+(p.costo!==''&&p.costo!=null?'<div class="bud-sub">'+money(p.costo)+'</div>':'')+'</div>'+
-    '<div class="who">'+people(p.responsable)+'</div>'+
-    (ADMIN?'<div class="act">'+editBtn('plat',p.id,p.nombre)+'</div>':'')+
-    (p.notas?'<details class="notebox" data-note="p:'+esc(p.id)+'"'+(state.openNotes['p:'+p.id]?' open':'')+'><summary>Notas</summary><div class="notetext">'+esc(p.notas)+'</div></details>':'')+
-  '</div>';
+/* ---------- Plataformas: fichas por tipo. El costo no se muestra: queda solo en el formulario de edición. ---------- */
+var PTIPOS={pago:'De pago',gratis:'Gratuita',int:'Interna'};
+function platTipo(p){if(p.tipo==='pago'||p.tipo==='gratis'||p.tipo==='int')return p.tipo;return (p.renovacion||+p.costo>0)?'pago':'gratis';}
+function platIni(n){
+  var w=String(n||'').trim().split(/\s+/).filter(function(x){return !/^plataforma$/i.test(x);});
+  if(!w.length)return '?';
+  if(w.length===1)return w[0].replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9]/g,'').slice(0,2).toUpperCase();
+  return (w[0].charAt(0)+w[1].charAt(0)).toUpperCase();
+}
+function platCard(p){
+  var tipo=platTipo(p),n=daysUntil(p.renovacion),C=2*Math.PI*19;
+  var frac=n===null?0:n<0?1:Math.max(0.05,1-n/365);
+  var cls=n===null?'':n<0?' pf-bad':n<=60?' pf-soon':'';
+  var d=parseDate(p.renovacion);
+  var fecha=d?d.getDate()+' '+monFmt.format(d).replace('.','')+' '+d.getFullYear():(tipo==='pago'?'Sin fecha':'No renueva');
+  var en=n===null?(tipo==='pago'?'Agrega la fecha en Editar':'Acceso permanente'):n<0?'Vencida hace '+(-n)+(n===-1?' día':' días'):n===0?'Renueva hoy':n===1?'Renueva mañana':'Faltan '+n+' días';
+  var link=/^https?:\/\//i.test(p.enlace||'')?'<a class="pf-open" href="'+esc(p.enlace)+'" target="_blank" rel="noopener" aria-label="Abrir '+esc(p.nombre)+'" title="Abrir plataforma">'+ic('ext',17)+'</a>':'';
+  return '<article class="pf-card"><div class="pf-head"><span class="pf-logo" style="--h:'+hue(String(p.nombre))+'" aria-hidden="true">'+esc(platIni(p.nombre))+'</span>'+
+    '<div class="pf-ttl"><span class="pf-k">'+esc(PTIPOS[tipo])+'</span><span class="pf-n">'+esc(p.nombre)+'</span></div>'+link+'</div>'+
+    '<div class="pf-body"><div class="pf-ren'+cls+'"><svg width="48" height="48" viewBox="0 0 48 48" role="img" aria-label="'+esc(en)+'"><circle cx="24" cy="24" r="19" class="pf-rbg"/>'+
+      (frac?'<circle cx="24" cy="24" r="19" class="pf-rfg" stroke-dasharray="'+(C*frac).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 24 24)"/>':'')+'</svg>'+
+      '<div><span class="pf-rk">Renovación</span><b>'+esc(fecha)+'</b><span class="pf-rs">'+esc(en)+'</span></div></div>'+
+    '<div class="pf-foot"><span>Responsable: <b>'+esc(p.responsable||'Sin asignar')+'</b></span>'+editBtn('plat',p.id,p.nombre)+'</div>'+
+    (p.notas?'<details class="notebox pf-notes" data-note="p:'+esc(p.id)+'"'+(state.openNotes['p:'+p.id]?' open':'')+'><summary>Notas</summary><div class="notetext">'+esc(p.notas)+'</div></details>':'')+
+  '</div></article>';
 }
 function renderPlataformas(){
   var el=$('panel-plataformas');
   if(stateBlock(el))return;
-  var q=lower(state.pq);
-  var list=state.plataformas.filter(function(p){return !q||lower([p.nombre,p.responsable,p.notas].join(' ')).indexOf(q)>-1;}).sort(function(a,b){
-    var x=a.renovacion||'9999',y=b.renovacion||'9999';return x<y?-1:x>y?1:0;
-  });
-  var toolbar='<div class="toolbar">'+searchBox('q-plat','Buscar plataforma o responsable',state.pq,'Buscar plataformas')+
-    (ADMIN?'<button class="btn primary" data-act="new" data-kind="plat">'+ic('plus',17)+'Nueva plataforma</button>':'')+'</div>';
+  var q=lower(state.pq),t=todayStr();
+  var byRen=function(a,b){var x=a.renovacion||'9999',y=b.renovacion||'9999';return x<y?-1:x>y?1:lower(a.nombre)<lower(b.nombre)?-1:1;};
+  var list=state.plataformas.filter(function(p){return !q||lower([p.nombre,p.responsable,p.notas,PTIPOS[platTipo(p)]].join(' ')).indexOf(q)>-1;}).sort(byRen);
+  var nx=state.plataformas.filter(function(p){return p.renovacion&&p.renovacion>=t;}).sort(byRen)[0];
+  var sub=state.plataformas.length+(state.plataformas.length===1?' acceso':' accesos')+(nx?' · la próxima renovación es <b class="pf-next">'+esc(nx.nombre)+', '+esc(daysUntil(nx.renovacion)===0?'hoy':daysUntil(nx.renovacion)===1?'mañana':'en '+daysUntil(nx.renovacion)+' días')+'</b>':'');
+  var head='<div class="cu-head pf-top"><div><h2>Plataformas</h2><p class="pf-sub">'+sub+'</p></div><div class="cu-tools">'+searchBox('q-plat','Buscar plataforma o responsable',state.pq,'Buscar plataformas')+
+    (ADMIN?'<button class="btn primary" data-act="new" data-kind="plat">'+ic('plus',17)+'Nueva plataforma</button>':'')+'</div></div>';
   var body;
-  if(!state.plataformas.length) body=emptyBlock('link',ADMIN?'Aún no hay plataformas':'Aún no hay plataformas registradas',ADMIN?'Agrega cada plataforma de reclutamiento con su enlace y su fecha de renovación.':'Cuando se agreguen, las verás aquí.','<button class="btn primary" data-act="new" data-kind="plat">'+ic('plus',17)+'Agregar la primera plataforma</button>');
+  if(!state.plataformas.length) body=emptyBlock('link',ADMIN?'Aún no hay plataformas':'Aún no hay plataformas registradas',ADMIN?'Agrega cada plataforma con su enlace, tipo y fecha de renovación. Luego pulsa Publicar.':'Cuando se agreguen, las verás aquí.','');
   else if(!list.length) body='<p class="none">Ninguna plataforma coincide con la búsqueda.</p>';
-  else body='<div class="group-title">Por fecha de renovación</div><div class="list">'+list.map(platRow).join('')+'</div>';
-  keepFocus('q-plat',toolbar+'<div class="stack">'+body+'</div>',el);
+  else body=['pago','gratis','int'].map(function(k){
+    var g=list.filter(function(p){return platTipo(p)===k;});
+    if(!g.length)return '';
+    return '<section class="pf-group" aria-label="'+esc(PTIPOS[k])+'"><h3 class="do-st">'+(k==='pago'?'De pago':k==='gratis'?'Gratuitas':'Internas')+' <span>'+g.length+'</span></h3><div class="pf-grid">'+g.map(platCard).join('')+'</div></section>';
+  }).join('');
+  keepFocus('q-plat','<div class="cu">'+head+body+'</div>',el);
 }
 
 /* ---------- DO (Desarrollo Organizacional) ---------- */
@@ -1498,8 +1516,9 @@ function openSheet(kind,id){
   }else if(kind==='plat'){
     f=fld('nombre','Plataforma','text',rec.nombre,{full:true,ph:'Ej: LinkedIn Talent, Laborum, Trabajando.com'})+
       fld('enlace','Enlace de acceso','url',rec.enlace,{full:true,ph:'https://',hint:'La página donde se entra a la plataforma.'})+
+      fld('tipo','Tipo','select',platTipo(rec),{options:['pago','gratis','int'],labels:PTIPOS})+
       fld('renovacion','Fecha de renovación','date',rec.renovacion)+
-      fld('costo','Costo (CLP, opcional)','number',(rec.costo===''||rec.costo==null)?'':rec.costo,{attrs:'inputmode="numeric" min="0" step="1000"'})+
+      fld('costo','Costo anual (CLP, solo visible aquí)','number',(rec.costo===''||rec.costo==null)?'':rec.costo,{attrs:'inputmode="numeric" min="0" step="1000"'})+
       fld('responsable','Responsable','text',rec.responsable,{full:true})+
       fld('notas','Notas','textarea',rec.notas,{full:true,hint:'No guardes usuarios ni contraseñas aquí: todo el equipo puede leer estas notas.'});
   }else if(kind==='evdo'){
@@ -1570,7 +1589,7 @@ function collect(kind){
     if(!d.nombre){ferr('Escribe el nombre de la persona.');return null;}
   }else if(kind==='plat'){
     var pl=val('enlace');if(pl&&!/^https?:\/\//i.test(pl)) pl='https://'+pl;
-    d={nombre:val('nombre'),enlace:pl,renovacion:val('renovacion'),costo:toNum(val('costo')),responsable:val('responsable'),notas:val('notas')};
+    d={nombre:val('nombre'),tipo:val('tipo')||'pago',enlace:pl,renovacion:val('renovacion'),costo:toNum(val('costo')),responsable:val('responsable'),notas:val('notas')};
     if(!d.nombre){ferr('Escribe el nombre de la plataforma.');return null;}
   }else if(kind==='evdo'){
     d={proceso:val('proceso')||'clima',nombre:val('nombre'),fecha:val('fecha'),fechaFin:val('fechaFin'),tentativa:val('tentativa')==='si',horaInicio:val('horaInicio'),horaFin:val('horaFin'),lugar:val('lugar'),responsables:val('responsables'),notas:val('notas')};
