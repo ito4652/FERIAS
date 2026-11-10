@@ -854,3 +854,32 @@ html.locked .gate{display:block}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pf-logo{background:hsl(var(--h) 35% 22%);color:hsl(var(--h) 70% 82%)}}
 @media (max-width:760px){.pf-grid{grid-template-columns:1fr}}
 .pf-grid{align-items:start}
+
+/* ---------- Cumpleaños: tarjeta compacta y wish list ---------- */
+.cu-hero{padding:20px 24px;gap:14px}
+.cu-hero-top{align-items:flex-start;gap:16px}
+.cu-hmain{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.cu-htitle{margin:0;font:700 26px/1.15 var(--f-display);color:#fff;overflow-wrap:anywhere}
+.cu-hero .cu-org{font-size:14px}
+.cu-hero .cu-org .av{width:26px;height:26px;font-size:10.5px}
+.cu-hside{flex:0 1 280px;min-width:220px;display:flex;align-items:flex-start;gap:10px}
+.cu-hside .cu-bud{flex:1 1 auto;min-width:0;gap:6px}
+.cu-hero .cu-bud-top b{font-size:20px}
+.cu-hacts{display:flex;gap:6px;flex:none}
+.cu-ib{all:unset;box-sizing:border-box;cursor:pointer;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#fff;border:1px solid rgba(255,255,255,.28)}
+.cu-ib:hover{background:rgba(255,255,255,.1)}
+.cu-ib:focus-visible{outline:2px solid #3FD0BB;outline-offset:2px}
+.cu-hero-buy{padding-top:12px;gap:8px}
+.cu-pills.dark .cu-pill{min-height:40px;padding:0 14px 0 10px;font-size:14px;gap:8px}
+.cu-pills.dark .cu-box{width:20px;height:20px}
+.cu-notes{font-size:13.5px}
+.cu-wish{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}
+.cu-wish>b{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800;color:var(--ink)}
+.cu-wl{display:flex;flex-wrap:wrap;gap:6px}
+.cu-wi{display:inline-flex;align-items:center;gap:5px;min-height:30px;padding:0 12px;border-radius:999px;font-size:13.5px;font-weight:600;background:#F6E6F3;color:#7A2C6B;text-decoration:none}
+.cu-wi.link:hover{text-decoration:underline}
+.cu-hero .cu-wish{border-top:1px solid rgba(255,255,255,.14);padding-top:12px}
+.cu-hero .cu-wish>b{color:#fff}
+.cu-hero .cu-wi{background:rgba(240,184,227,.16);color:#F7D6EE}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cu-wi{background:#3A1F35;color:#F0B8E3}}
+@media (max-width:760px){.cu-htitle{font-size:22px}.cu-hside{flex-basis:100%}}

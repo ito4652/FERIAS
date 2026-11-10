@@ -31,6 +31,7 @@ var P={
   link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   chev:'<path d="m9 6 6 6-6 6"/>',
   chevl:'<path d="m15 6-6 6 6 6"/>',
+  gift:'<rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3-5-3.5-5-1.2C7 8 9 8 12 8zm0 0c1.5-3 5-3.5 5-1.2C17 8 15 8 12 8z"/>',
   ext:'<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
   users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>'
@@ -833,18 +834,27 @@ function cuBudget(st,dark){
     '<div class="cu-bar'+(st.pres!==null&&st.gas>st.pres?' over':'')+'" role="img" aria-label="Gastado '+pct+'%"><i style="width:'+pct+'%"></i></div>'+
     '<span class="cu-bud-sub">Gastado '+money(st.gas)+(st.pres!==null?' · '+(st.gas>st.pres?'excedido en '+money(st.gas-st.pres):'quedan '+money(st.pres-st.gas)):'')+'</span></div>';
 }
-function calBtnDark(c){return parseDate(c.fecha)?'<button class="btn hx-ghost" data-act="cal" data-id="'+esc(c.id)+'">'+ic('calplus',16)+'Agregar al calendario</button>':'';}
+function cuWish(c){
+  var L=Array.isArray(c.deseos)?c.deseos:[];if(!L.length)return '';
+  return '<div class="cu-wish"><b>'+ic('gift',15)+'Wish list</b><div class="cu-wl">'+L.map(function(x){
+    var m=/(https?:\/\/[^\s]+)/i.exec(x);
+    if(!m)return '<span class="cu-wi">'+esc(x)+'</span>';
+    var lbl=x.replace(m[1],'').trim();if(!lbl){try{lbl=new URL(m[1]).hostname.replace(/^www\./,'');}catch(e){lbl='Enlace';}}
+    return '<a class="cu-wi link" href="'+esc(m[1])+'" target="_blank" rel="noopener">'+esc(lbl)+ic('ext',13)+'</a>';
+  }).join('')+'</div></div>';
+}
 function cuHero(c){
   var st=cumpleStats(c),d=parseDate(c.fecha),dd=daysUntil(c.fecha),rs=respList(c);
   var when=dd===0?'¡es hoy!':dd===1?'mañana, ':'en '+dd+' días, ';
   var kick='Próximo cumpleaños · '+when+(dd===0?'':d?longDay.format(d):'');
-  return '<section class="hx-hero cu-hero" aria-labelledby="cu-next"><div class="cu-hero-top"><div class="hx-hero-main">'+
-    '<div class="hx-kicker cu-kicker">'+esc(cap(kick))+'</div><h2 class="hx-title" id="cu-next">'+esc(c.nombre)+'</h2>'+
+  var acts=(d?'<button class="cu-ib" data-act="cal" data-id="'+esc(c.id)+'" aria-label="Agregar al calendario" title="Agregar al calendario">'+ic('calplus',18)+'</button>':'')+
+    (ADMIN?'<button class="cu-ib" data-act="edit" data-kind="cumple" data-id="'+esc(c.id)+'" aria-label="Editar cumpleaños de '+esc(c.nombre)+'" title="Editar">'+ic('pencil',17)+'</button>':'');
+  return '<section class="hx-hero cu-hero" aria-labelledby="cu-next"><div class="cu-hero-top"><div class="cu-hmain">'+
+    '<div class="hx-kicker cu-kicker">'+esc(cap(kick))+'</div><h2 class="cu-htitle" id="cu-next">'+esc(c.nombre)+'</h2>'+
     (rs.length?'<div class="cu-org">'+rs.map(function(r){return '<span class="av" style="--h:'+hue(r)+'" aria-hidden="true">'+esc(initials(r))+'</span>';}).join('')+'<span>Organiza '+esc(rs.join(' y '))+'</span></div>':'<div class="cu-org"><span>Sin responsable</span></div>')+
-    '</div>'+cuBudget(st,true)+'</div>'+
+    '</div><div class="cu-hside">'+cuBudget(st,true)+(acts?'<div class="cu-hacts">'+acts+'</div>':'')+'</div></div>'+
     '<div class="cu-hero-buy"><div class="cu-buyhead"><b>Compras</b>'+(st.total?'<span>'+(st.total-st.pend)+' de '+st.total+' listas · toca para marcar</span>':'')+'</div>'+cuPills(c,true)+'</div>'+
-    '<div class="hx-actions">'+calBtnDark(c)+(ADMIN?'<button class="btn hx-ghost" data-act="edit" data-kind="cumple" data-id="'+esc(c.id)+'">'+ic('pencil',16)+'Editar</button>':'')+'</div>'+
-    (c.notas?'<p class="cu-notes">'+esc(c.notas)+'</p>':'')+'</section>';
+    cuWish(c)+(c.notas?'<p class="cu-notes">'+esc(c.notas)+'</p>':'')+'</section>';
 }
 function cuRow(c,past){
   var st=cumpleStats(c),d=parseDate(c.fecha),dd=daysUntil(c.fecha),rs=respList(c),key='cu:'+c.id;
@@ -853,7 +863,7 @@ function cuRow(c,past){
     '<span class="cu-date"><b>'+(d?d.getDate():'—')+'</b><span>'+(d?esc(monFmt.format(d).replace('.','')):'')+'</span></span>'+
     '<span class="cu-main"><span class="cu-name">'+esc(c.nombre)+'</span><span class="cu-sub">'+esc(sub)+'</span></span>'+
     '<span class="cu-right"><span class="pill '+(past?'mat':dd<=7?'warn':'mat')+'">'+esc(past?'Realizado':dayLabel(dd))+'</span><span class="cu-chev" aria-hidden="true">'+ic('chev',18)+'</span></span></summary>'+
-    '<div class="cu-body">'+cuBudget(st,false)+'<div class="cu-buyhead"><b>Compras</b></div>'+cuPills(c,false)+
+    '<div class="cu-body">'+cuBudget(st,false)+'<div class="cu-buyhead"><b>Compras</b></div>'+cuPills(c,false)+cuWish(c)+
     (c.notas?'<p class="cu-notes light">'+esc(c.notas)+'</p>':'')+
     '<div class="cu-acts">'+(past?'':calBtn(cumpleEvent(c),false))+(ADMIN?'<button class="btn" data-act="edit" data-kind="cumple" data-id="'+esc(c.id)+'">'+ic('pencil',16)+'Editar</button>':'')+'</div></div></details>';
 }
@@ -1549,6 +1559,7 @@ function openSheet(kind,id){
       '<div class="fld full"><label>Compras</label><div class="items" id="items-editor">'+itemsHtml()+'</div>'+
         '<button type="button" class="btn additem" data-act="itadd">'+ic('plus',16)+'Agregar artículo</button>'+
         '<span class="hint">Marca la casilla cuando ya esté comprado. El costo puede quedar vacío.</span></div>'+
+      fld('deseos','Wish list','textarea',(Array.isArray(rec.deseos)?rec.deseos:[]).join('\n'),{full:true,ph:'Una idea por línea. Ej: Libro de cocina',hint:'Ideas de regalo, una por línea. Puedes pegar el enlace de una tienda.'})+
       fld('notas','Notas','textarea',rec.notas,{full:true});
   }else{
     f=fld('nombre','Nombre','text',rec.nombre,{full:true})+
@@ -1604,7 +1615,8 @@ function collect(kind){
     if(!d.titulo){ferr('Escribe un título para el anuncio.');return null;}
   }else if(kind==='cumple'){
     var items=(state.edit.items||[]).map(function(it){return {id:it.id||newId(),nombre:String(it.nombre||'').trim(),costo:toNum(it.costo),comprado:!!it.comprado};}).filter(function(it){return it.nombre;});
-    d={nombre:val('nombre'),fecha:val('fecha'),responsable:val('responsable'),presupuesto:toNum(val('presupuesto')),items:items,notas:val('notas')};
+    d={nombre:val('nombre'),fecha:val('fecha'),responsable:val('responsable'),presupuesto:toNum(val('presupuesto')),items:items,
+      deseos:val('deseos').split(/\n/).map(function(x){return x.trim();}).filter(Boolean),notas:val('notas')};
     if(!d.nombre){ferr('Escribe el nombre de la persona que cumple años.');return null;}
     if(!d.fecha){ferr('Elige la fecha del cumpleaños.');return null;}
   }else{
