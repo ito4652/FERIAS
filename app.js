@@ -961,9 +961,9 @@ function tilesHtml(){
   var cur=state.eventosdo.filter(function(e){return e.fecha<=t&&doEnd(e)>=t;}).sort(cmpFeria)[0];
   var nx=state.eventosdo.filter(function(e){return e.fecha>t;}).sort(cmpFeria)[0];
   if(cur){var dl=daysUntil(doEnd(cur));
-    T.push('<button class="hx-tile" data-act="goto" data-tab="do"><span class="hx-tk ok">En curso</span><span class="hx-big">'+dl+' <small>'+(dl===1?'día':'días')+'</small></span><span class="hx-tt">'+esc(cur.nombre)+'</span><span class="hx-ts">Evento DO'+(rangeTxt(cur)?', del '+esc(rangeTxt(cur)):'')+'</span></button>');}
+    T.push('<button class="hx-tile" data-act="goto" data-tab="do"><span class="hx-tk ok">En curso · '+esc(procName(procOf(cur)))+'</span><span class="hx-big">'+dl+' <small>'+(dl===1?'día':'días')+'</small></span><span class="hx-tt">'+esc(cur.nombre)+'</span><span class="hx-ts">'+(rangeTxt(cur)?'Del '+esc(rangeTxt(cur)):'Termina hoy')+'</span></button>');}
   else if(nx){var dn=daysUntil(nx.fecha);
-    T.push('<button class="hx-tile" data-act="goto" data-tab="do"><span class="hx-tk">Próximo evento DO</span><span class="hx-big">'+dn+' <small>'+(dn===1?'día':'días')+'</small></span><span class="hx-tt">'+esc(nx.nombre)+'</span><span class="hx-ts">'+esc(rangeTxt(nx)||'')+'</span></button>');}
+    T.push('<button class="hx-tile" data-act="goto" data-tab="do"><span class="hx-tk">Próximo en DO · '+esc(procName(procOf(nx)))+'</span><span class="hx-big">'+dn+' <small>'+(dn===1?'día':'días')+'</small></span><span class="hx-tt">'+esc(nx.nombre)+'</span><span class="hx-ts">'+esc(rangeTxt(nx)||'')+'</span></button>');}
   var c=state.cumpleanos.filter(function(x){return x.fecha>=t;}).sort(cmpFeria)[0];
   if(c){var dc=daysUntil(c.fecha),st=cumpleStats(c),d=parseDate(c.fecha);
     T.push('<button class="hx-tile" data-act="goto" data-tab="cumpleanos"><span class="hx-tk">Próximo cumpleaños</span><span class="hx-big">'+(dc===0?'Hoy':dc+' <small>'+(dc===1?'día':'días')+'</small>')+'</span><span class="hx-tt">'+esc(c.nombre)+'</span>'+
@@ -1169,24 +1169,114 @@ function doRow(f,past,isNext){
     (f.notas?'<details class="notebox" data-note="d:'+esc(f.id)+'"'+(state.openNotes['d:'+f.id]?' open':'')+'><summary>Notas</summary><div class="notetext">'+esc(f.notas)+'</div></details>':'')+
   '</div>';
 }
+/* ---------- DO: tres procesos durante el año ----------
+   Cada etapa pertenece a un proceso (Clima, Capital Humano o Desempeño y Potencial).
+   Las etapas sin proceso, anteriores a este cambio, se consideran Clima. */
+var DOPROC=[{id:'clima',n:'Clima'},{id:'ch',n:'Capital Humano'},{id:'dp',n:'Desempeño y Potencial'}];
+function procOf(f){var p=f&&f.proceso;return p==='ch'||p==='dp'?p:'clima';}
+function procName(id){for(var i=0;i<DOPROC.length;i++)if(DOPROC[i].id===id)return DOPROC[i].n;return 'Clima';}
+function doCur(f,t){return f.fecha&&f.fecha<=t&&doEnd(f)>=t;}
+function dayOfYear(s){var d=parseDate(s);if(!d)return 0;return Math.round((d-new Date(d.getFullYear(),0,1))/864e5);}
+function doRango(f){var r=rangeTxt(f);if(r)return r;var d=parseDate(f.fecha);return d?d.getDate()+' '+monFmt.format(d).replace('.',''):'';}
+function doHero(t){
+  var ev=state.eventosdo;
+  var act=DOPROC.filter(function(p){return ev.some(function(f){return procOf(f)===p.id&&doCur(f,t);});});
+  var cur=ev.filter(function(f){return doCur(f,t);});
+  var next=ev.filter(function(f){return f.fecha>t;}).sort(cmpFeria)[0];
+  var title=act.length?'Estamos en '+act.map(function(p){return p.n;}).join(' y '):'Ningún proceso activo hoy';
+  var sub=act.length?(cur.length+(cur.length===1?' etapa en curso.':' etapas en curso.')+(next?' La próxima, '+next.nombre+', empieza '+(daysUntil(next.fecha)===1?'mañana.':'en '+daysUntil(next.fecha)+' días.'):'')):
+    (next?'Lo próximo: '+next.nombre+' ('+procName(procOf(next))+'), '+(daysUntil(next.fecha)===1?'mañana.':'en '+daysUntil(next.fecha)+' días.'):'No hay etapas próximas cargadas.');
+  var chips=DOPROC.map(function(p){
+    var on=act.indexOf(p)>-1;
+    var nx=ev.filter(function(f){return procOf(f)===p.id&&f.fecha>t;}).sort(cmpFeria)[0];
+    var txt=on?'activo':nx?'empieza en '+daysUntil(nx.fecha)+' días':'en pausa';
+    return '<button class="do-chip'+(on?' on':'')+' p-'+p.id+'" data-act="doproc" data-p="'+p.id+'"><span class="do-dot p-'+p.id+'" aria-hidden="true"></span>'+esc(p.n)+' · '+esc(txt)+'</button>';
+  }).join('');
+  return '<section class="hx-hero do-hero"><div class="hx-hero-main"><div class="hx-kicker">Desarrollo Organizacional · ahora</div>'+
+    '<h2 class="hx-title">'+esc(title)+'</h2><p class="hx-meta"><span>'+esc(sub)+'</span></p></div><div class="do-chips">'+chips+'</div></section>';
+}
+function doYearMap(t){
+  var y=state.doYear,y0=y+'-01-01',y1=y+'-12-31',days=(new Date(y,11,31)-new Date(y,0,1))/864e5+1;
+  var meses=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  var lanes=DOPROC.map(function(p){
+    var evs=state.eventosdo.filter(function(f){return procOf(f)===p.id&&f.fecha&&f.fecha<=y1&&doEnd(f)>=y0;}).sort(cmpFeria);
+    var bars=evs.map(function(f){
+      var a=f.fecha<y0?0:dayOfYear(f.fecha),b=doEnd(f)>y1?days-1:dayOfYear(doEnd(f));
+      var l=a/days*100,w=Math.max((b-a+1)/days*100,0.7);
+      return '<button class="do-bar p-'+p.id+(f.tentativa?' tent':'')+(doCur(f,t)?' cur':'')+'" style="left:'+l.toFixed(2)+'%;width:'+w.toFixed(2)+'%" data-act="doproc" data-p="'+p.id+'" title="'+esc(f.nombre+' · '+doRango(f)+(f.tentativa?' (tentativa)':''))+'" aria-label="'+esc(p.n+': '+f.nombre+', '+doRango(f))+'"></button>';
+    }).join('');
+    var sel=state.doP===p.id;
+    return '<div class="do-lane"><button class="do-lname'+(sel?' sel p-'+p.id:'')+'" data-act="doproc" data-p="'+p.id+'"><span class="do-dot p-'+p.id+'" aria-hidden="true"></span><span><b>'+esc(p.n)+'</b><small>'+(evs.length?evs.length+(evs.length===1?' etapa':' etapas'):'Sin etapas')+' en '+y+'</small></span></button>'+
+      '<div class="do-track">'+(bars||'<span class="do-empty">Sin etapas cargadas para '+y+'</span>')+
+      (String(y)===t.slice(0,4)?'<span class="do-today" style="left:'+((dayOfYear(t)+0.5)/days*100).toFixed(2)+'%" aria-hidden="true"></span>':'')+'</div></div>';
+  }).join('');
+  return '<section class="do-year" aria-labelledby="do-y"><div class="do-yhead"><h2 id="do-y">El año en DO · '+y+'</h2>'+
+    '<div class="do-ynav"><button class="iconbtn" data-act="doyear" data-v="-1" aria-label="Año anterior">'+ic('chevl',18)+'</button>'+
+    (String(y)!==t.slice(0,4)?'<button class="btn wk-today" data-act="doyear" data-v="0">Este año</button>':'')+
+    '<button class="iconbtn" data-act="doyear" data-v="1" aria-label="Año siguiente">'+ic('chev',18)+'</button></div></div>'+
+    '<div class="do-scroll"><div class="do-grid"><div class="do-lane do-months"><span></span><div class="do-mrow">'+meses.map(function(m){return '<span>'+m+'</span>';}).join('')+'</div></div>'+lanes+'</div></div>'+
+    '<p class="do-hint">Las barras rayadas tienen fechas tentativas. Toca un proceso para ver su detalle.</p></section>';
+}
+function doCurCard(f,t){
+  var tot=Math.max(1,Math.round((parseDate(doEnd(f))-parseDate(f.fecha))/864e5)+1),dia=Math.round((parseDate(t)-parseDate(f.fecha))/864e5)+1,q=daysUntil(doEnd(f));
+  var pct=Math.min(100,Math.max(0,Math.round(dia/tot*100)));
+  return '<article class="do-cur p-'+procOf(f)+'"><div class="do-curtop"><h4>'+esc(f.nombre)+'</h4><span class="do-q"><b>'+q+'</b><small>'+(q===0?'termina hoy':q===1?'día queda':'días quedan')+'</small></span></div>'+
+    '<div class="do-pbar" role="img" aria-label="Día '+dia+' de '+tot+'"><i style="width:'+pct+'%"></i></div>'+
+    '<div class="do-curmeta"><span>'+esc(doRango(f))+(f.tentativa?' · tentativa':'')+'</span><span>'+esc(String(f.responsables||''))+'</span></div>'+
+    ((f.notas||f.lugar||ADMIN)?'<details class="cu-row do-more" data-note="do:'+esc(f.id)+'"'+(state.openNotes['do:'+f.id]?' open':'')+'><summary>Detalle</summary><div class="do-body">'+doBody(f)+'</div></details>':'')+'</article>';
+}
+function doBody(f){
+  var hora=f.horaInicio?f.horaInicio+(f.horaFin?' a '+f.horaFin:''):'';
+  return (hora||f.lugar?'<p class="do-info">'+[hora,f.lugar].filter(Boolean).map(esc).join(' · ')+'</p>':'')+
+    (f.notas?'<div class="notetext">'+esc(f.notas)+'</div>':'')+
+    '<div class="cu-acts">'+calBtn(f,doEnd(f)<todayStr())+(ADMIN?'<button class="btn" data-act="edit" data-kind="evdo" data-id="'+esc(f.id)+'">'+ic('pencil',16)+'Editar</button>':'')+'</div>';
+}
+function doRowItem(f,past){
+  var d=parseDate(f.fecha),key='do:'+f.id,n=daysUntil(f.fecha);
+  var sub=[rangeTxt(f)?'Hasta el '+(function(){var b=parseDate(doEnd(f));return b.getDate()+' '+monFmt.format(b).replace('.','');})():'',String(f.responsables||''),f.tentativa?'tentativa':''].filter(Boolean).join(' · ');
+  return '<details class="cu-row'+(past?' past':'')+'" data-note="'+esc(key)+'"'+(state.openNotes[key]?' open':'')+'><summary>'+
+    '<span class="cu-date do-date p-'+procOf(f)+'"><b>'+(d?d.getDate():'—')+'</b><span>'+(d?esc(monFmt.format(d).replace('.','')):'')+'</span></span>'+
+    '<span class="cu-main"><span class="cu-name">'+esc(f.nombre)+'</span>'+(sub?'<span class="cu-sub">'+esc(sub)+'</span>':'')+'</span>'+
+    '<span class="cu-right"><span class="pill '+(past?'mat':n<=3?'warn':'mat')+'">'+esc(past?'Terminada':dayLabel(n))+'</span><span class="cu-chev" aria-hidden="true">'+ic('chev',18)+'</span></span></summary>'+
+    '<div class="cu-body">'+doBody(f)+'</div></details>';
+}
 function renderDO(){
   var el=$('panel-do');
   if(stateBlock(el))return;
-  var t=todayStr(),q=lower(state.dq);
-  var list=state.eventosdo.filter(function(f){return !q||lower([f.nombre,f.lugar,f.responsables,f.notas].join(' ')).indexOf(q)>-1;}).sort(cmpFeria);
-  var up=list.filter(function(f){return doEnd(f)>=t;});
-  var past=list.filter(function(f){return doEnd(f)<t;}).reverse();
-  var toolbar='<div class="toolbar">'+searchBox('q-do','Buscar evento, lugar o responsable',state.dq,'Buscar eventos de DO')+
-    (ADMIN?'<button class="btn primary" data-act="new" data-kind="evdo">'+ic('plus',17)+'Nuevo evento</button>':'')+'</div>';
+  var t=todayStr();
+  if(!state.doYear)state.doYear=+t.slice(0,4);
+  if(!state.doP){var a=state.eventosdo.filter(function(f){return doCur(f,t);}).sort(cmpFeria)[0];state.doP=a?procOf(a):'clima';}
+  var q=lower(state.dq),p=state.doP;
+  var mine=state.eventosdo.filter(function(f){return procOf(f)===p&&(!q||lower([f.nombre,f.lugar,f.responsables,f.notas].join(' ')).indexOf(q)>-1);}).sort(cmpFeria);
+  var cur=mine.filter(function(f){return doCur(f,t);}),prox=mine.filter(function(f){return f.fecha>t;}),past=mine.filter(function(f){return doEnd(f)<t;}).reverse();
+  var tabs='<div class="do-tabs" role="tablist" aria-label="Procesos">'+DOPROC.map(function(x){
+    var n=state.eventosdo.filter(function(f){return procOf(f)===x.id&&doEnd(f)>=t;}).length,sel=x.id===p;
+    return '<button class="do-tab'+(sel?' sel p-'+x.id:'')+'" role="tab" aria-selected="'+sel+'" data-act="doproc" data-p="'+x.id+'"><span class="do-dot p-'+x.id+'" aria-hidden="true"></span>'+esc(x.n)+(n?'<span class="do-n">'+n+'</span>':'')+'</button>';
+  }).join('')+'</div>';
+  var tools='<div class="cu-tools">'+searchBox('q-do','Buscar etapa o responsable',state.dq,'Buscar etapas de DO')+
+    (ADMIN?'<button class="btn primary" data-act="new" data-kind="evdo">'+ic('plus',17)+'Nueva etapa de '+esc(procName(p))+'</button>':'')+'</div>';
   var body='';
-  if(!state.eventosdo.length) body=emptyBlock('cal',ADMIN?'Aún no hay eventos de DO':'Aún no hay eventos de DO',ADMIN?'Agrega los próximos eventos con fecha, hora, lugar y responsables.':'Cuando se agreguen, los verás aquí.','<button class="btn primary" data-act="new" data-kind="evdo">'+ic('plus',17)+'Agregar el primer evento</button>');
-  else if(!list.length) body='<p class="none">Ningún evento coincide con la búsqueda.</p>';
-  else{
-    if(up.length) body+='<div class="group-title">Próximos</div><div class="list">'+up.map(function(f,i){return doRow(f,false,!q&&i===0);}).join('')+'</div>';
-    else body+='<p class="none">No hay eventos próximos.</p>';
-    if(past.length) body+='<details class="pastbox"><summary>Realizados ('+past.length+')</summary><div class="list">'+past.map(function(f){return doRow(f,true,false);}).join('')+'</div></details>';
+  if(!mine.length){
+    body=q?'<p class="none">Ninguna etapa de '+esc(procName(p))+' coincide con la búsqueda.</p>':
+      '<div class="do-emptybox"><b>Aún no hay etapas de '+esc(procName(p))+'</b><span>Cuando cargues sus etapas del año (fechas, responsables y notas), aparecerán aquí y en el mapa del año.</span>'+
+      (ADMIN?'<button class="btn primary" data-act="new" data-kind="evdo">'+ic('plus',17)+'Agregar etapa</button>':'<a class="btn" href="admin.html">'+ic('pencil',16)+'Agregar en Editar datos</a>')+'</div>';
+  }else{
+    if(cur.length)body+='<div class="do-sec"><h3 class="do-st ok">En curso</h3><div class="do-curgrid">'+cur.map(function(f){return doCurCard(f,t);}).join('')+'</div></div>';
+    if(prox.length)body+='<div class="do-sec"><h3 class="do-st">Próximas</h3><div class="cu-list">'+prox.map(function(f){return doRowItem(f,false);}).join('')+'</div></div>';
+    if(!cur.length&&!prox.length)body+='<p class="none">'+esc(procName(p))+' no tiene etapas en curso ni próximas.</p>';
+    if(past.length)body+='<details class="pastbox"'+(q?' open':'')+'><summary>Terminadas ('+past.length+')</summary><div class="cu-list">'+past.map(function(f){return doRowItem(f,true);}).join('')+'</div></details>';
   }
-  keepFocus('q-do',toolbar+'<div class="stack">'+body+'</div>',el);
+  var detail='<section class="do-detail" aria-labelledby="do-dt"><div class="cu-head"><h2 id="do-dt">Detalle por proceso</h2>'+tools+'</div>'+tabs+body+'</section>';
+  var sc=el.querySelector('.do-scroll'),prevX=sc?sc.scrollLeft:0;
+  keepFocus('q-do','<div class="cu">'+doHero(t)+doYearMap(t)+detail+'</div>',el);
+  /* En pantallas angostas el mapa se desliza: se deja a la vista el mes actual (o donde estaba). */
+  sc=el.querySelector('.do-scroll');
+  if(sc&&sc.scrollWidth>sc.clientWidth){
+    var td=sc.querySelector('.do-today');
+    if(state.doScrolled&&prevX)sc.scrollLeft=prevX;
+    else if(td){sc.scrollLeft=Math.max(0,td.offsetLeft+sc.querySelector('.do-track').offsetLeft-sc.clientWidth*0.6);}
+    state.doScrolled=true;
+  }
 }
 /* ---------- Equipo ---------- */
 /* Marca de cada feria: el logo que subió el equipo o, si no hay, sus iniciales en color. */
@@ -1413,7 +1503,8 @@ function openSheet(kind,id){
       fld('responsable','Responsable','text',rec.responsable,{full:true})+
       fld('notas','Notas','textarea',rec.notas,{full:true,hint:'No guardes usuarios ni contraseñas aquí: todo el equipo puede leer estas notas.'});
   }else if(kind==='evdo'){
-    f=fld('nombre','Evento','text',rec.nombre,{full:true,ph:'Ej: Taller de liderazgo'})+
+    f=fld('proceso','Proceso','select',rec.proceso||state.doP||'clima',{full:true,options:['clima','ch','dp'],labels:{clima:'Clima',ch:'Capital Humano',dp:'Desempeño y Potencial'}})+
+      fld('nombre','Etapa','text',rec.nombre,{full:true,ph:'Ej: Aplicación de la encuesta'})+
       fld('fecha','Fecha de inicio','date',rec.fecha)+
       fld('fechaFin','Fecha de término (si dura varios días)','date',rec.fechaFin)+
       fld('tentativa','Fechas','select',rec.tentativa?'si':'no',{options:['no','si'],labels:{no:'Confirmadas',si:'Tentativas'}})+
@@ -1482,9 +1573,9 @@ function collect(kind){
     d={nombre:val('nombre'),enlace:pl,renovacion:val('renovacion'),costo:toNum(val('costo')),responsable:val('responsable'),notas:val('notas')};
     if(!d.nombre){ferr('Escribe el nombre de la plataforma.');return null;}
   }else if(kind==='evdo'){
-    d={nombre:val('nombre'),fecha:val('fecha'),fechaFin:val('fechaFin'),tentativa:val('tentativa')==='si',horaInicio:val('horaInicio'),horaFin:val('horaFin'),lugar:val('lugar'),responsables:val('responsables'),notas:val('notas')};
-    if(!d.nombre){ferr('Escribe el nombre del evento.');return null;}
-    if(!d.fecha){ferr('Elige la fecha de inicio del evento.');return null;}
+    d={proceso:val('proceso')||'clima',nombre:val('nombre'),fecha:val('fecha'),fechaFin:val('fechaFin'),tentativa:val('tentativa')==='si',horaInicio:val('horaInicio'),horaFin:val('horaFin'),lugar:val('lugar'),responsables:val('responsables'),notas:val('notas')};
+    if(!d.nombre){ferr('Escribe el nombre de la etapa.');return null;}
+    if(!d.fecha){ferr('Elige la fecha de inicio de la etapa.');return null;}
     if(d.fechaFin&&d.fechaFin<d.fecha){ferr('La fecha de término es anterior a la de inicio.');return null;}
     if(!d.fechaFin&&d.horaInicio&&d.horaFin&&d.horaFin<d.horaInicio){ferr('La hora de término es anterior a la de inicio.');return null;}
   }else if(kind==='aviso'){
@@ -1570,6 +1661,8 @@ document.addEventListener('click',function(e){
   if(act==='copy'){copyText(b.getAttribute('data-text'));return;}
   if(act==='cal'){openCal(b.getAttribute('data-id'));return;}
   if(act==='ics'){var ff=calItem(b.getAttribute('data-id'));if(ff){downloadIcs(ff);closeSheet();}return;}
+  if(act==='doproc'){state.doP=b.getAttribute('data-p');renderDO();var dt=$('do-dt');if(dt&&b.closest('.do-hero,.do-year')&&dt.scrollIntoView){try{dt.scrollIntoView({behavior:'smooth',block:'start'});}catch(x){dt.scrollIntoView();}}return;}
+  if(act==='doyear'){var v=+b.getAttribute('data-v');state.doYear=v===0?+todayStr().slice(0,4):state.doYear+v;renderDO();return;}
   if(act==='agnew'){agOpen(null,b.getAttribute('data-d'));return;}
   if(act==='agedit'){agOpen(b.getAttribute('data-id'));return;}
   if(act==='agdel'){agDelete();return;}
