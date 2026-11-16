@@ -33,7 +33,7 @@ var I={
 function ci(name,size){size=size||18;return '<svg class="ic" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+I[name]+'</svg>';}
 
 var S={status:configured?'starting':'unconfigured',user:null,items:[],error:'',
-  q:'',filtro:'todos',open:{},edit:null,file:null,busy:false,delArmed:false,lastLoad:0};
+  q:'',filtro:'todos',open:{},f:{},fOpen:'',edit:null,file:null,busy:false,delArmed:false,lastLoad:0};
 
 /* ---------- Fechas de búsqueda (AAAA-MM) ---------- */
 function ym(d){return d.getFullYear()+'-'+pad(d.getMonth()+1);}
@@ -144,6 +144,60 @@ function row(c,inGroup){
     ((c.notas||c.entrevistador)?'<details class="notebox"><summary>Notas</summary><div class="notetext">'+esc(c.notas||'Sin notas.')+(c.entrevistador?'\n\nEntrevistó: '+esc(c.entrevistador):'')+'</div></details>':'')+
   '</div>';
 }
+/* ---------- Filtros combinables (estilo LinkedIn) ----------
+   Entre filtros distintos se exige que se cumplan todos; dentro de un filtro, basta una de las opciones marcadas. */
+var FILTROS=[
+  {k:'carrera',t:'Carrera'},{k:'universidad',t:'Universidad'},{k:'comuna',t:'Comuna'},{k:'nivel',t:'Año o situación'},
+  {k:'area',t:'Área de interés',multi:true},{k:'feria',t:'Feria'},{k:'estado',t:'Estado'},{k:'evaluacion',t:'Evaluación'}
+];
+function fVals(c,f){
+  var v=c[f.k];
+  if(f.k==='evaluacion')return v?[String(v)]:[];
+  if(!v)return [];
+  if(f.multi)return String(v).split(/\s*[,;\/]\s*|\s+-\s+|\s+y\s+/).map(function(x){return x.trim();}).filter(Boolean);
+  return [String(v).trim()];
+}
+function fLabel(f,raw){if(f.k==='evaluacion')return EVAL[raw]||raw;raw=String(raw);return raw.charAt(0).toUpperCase()+raw.slice(1);}
+function fOptions(f){
+  var M={};
+  S.items.forEach(function(c){fVals(c,f).forEach(function(v){var k=nz(v);if(!k)return;var o=M[k]||(M[k]={k:k,n:0,lab:{}});o.n++;o.lab[v]=(o.lab[v]||0)+1;});});
+  return Object.keys(M).map(function(k){var o=M[k],best=Object.keys(o.lab).sort(function(a,b){return o.lab[b]-o.lab[a];})[0];return {k:k,n:o.n,t:fLabel(f,best)};})
+    .sort(function(a,b){return f.k==='evaluacion'?(a.k<b.k?1:-1):(b.n-a.n||a.t.localeCompare(b.t,'es'));});
+}
+function fActive(){return FILTROS.some(function(f){return (S.f[f.k]||[]).length;});}
+function fMatch(c){
+  return FILTROS.every(function(f){
+    var sel=S.f[f.k];if(!sel||!sel.length)return true;
+    var vs=fVals(c,f).map(nz);
+    return sel.some(function(x){return vs.indexOf(x)>-1;});
+  });
+}
+function fBar(){
+  var btns=FILTROS.map(function(f){
+    var sel=S.f[f.k]||[],open=S.fOpen===f.k;
+    var pop='';
+    if(open){
+      var opts=fOptions(f);
+      pop='<div class="fpop" role="dialog" aria-label="Filtrar por '+esc(f.t)+'">'+
+        '<div class="fpop-h">'+esc(f.t)+(sel.length?' · '+sel.length+(sel.length===1?' marcada':' marcadas'):'')+'</div>'+
+        (opts.length>8?'<input type="search" id="cf-fq" class="fpop-q" placeholder="Buscar '+esc(f.t.toLowerCase())+'" aria-label="Buscar opción">':'')+
+        '<div class="fpop-list">'+(opts.length?opts.map(function(o,i){
+          return '<label class="fpop-op" data-txt="'+esc(nz(o.t))+'"><input type="checkbox" id="fo-'+f.k+'-'+i+'" data-fk="'+f.k+'" data-fv="'+esc(o.k)+'"'+(sel.indexOf(o.k)>-1?' checked':'')+'><span>'+esc(o.t)+'</span><small>'+o.n+'</small></label>';
+        }).join(''):'<p class="none">No hay datos de '+esc(f.t.toLowerCase())+' todavía.</p>')+'</div>'+
+        '<div class="fpop-foot"><button type="button" class="linkbtn" data-act="c-fclear" data-k="'+f.k+'">Limpiar</button><button type="button" class="btn primary" data-act="c-fclose">Listo</button></div></div>';
+    }
+    return '<div class="fwrap"><button type="button" class="fbtn'+(sel.length?' on':'')+'" data-act="c-fopen" data-k="'+f.k+'" aria-expanded="'+open+'">'+esc(f.t)+(sel.length?' <b>'+sel.length+'</b>':'')+ic('chev',14)+'</button>'+pop+'</div>';
+  }).join('');
+  var tags=[];
+  FILTROS.forEach(function(f){
+    var opts=null;
+    (S.f[f.k]||[]).forEach(function(k){
+      opts=opts||fOptions(f);var o=opts.filter(function(x){return x.k===k;})[0];
+      tags.push('<button type="button" class="ftag" data-act="c-funset" data-k="'+f.k+'" data-v="'+esc(k)+'" aria-label="Quitar filtro '+esc(f.t)+': '+esc(o?o.t:k)+'">'+esc(f.t)+': <b>'+esc(o?o.t:k)+'</b>'+ic('x',13)+'</button>');
+    });
+  });
+  return '<div class="fbar" aria-label="Filtros">'+btns+'</div>'+(tags.length?'<div class="ftags">'+tags.join('')+'<button type="button" class="linkbtn" data-act="c-fclearall">Limpiar todo</button></div>':'');
+}
 /* Candidatos agrupados por feria, en tarjetas plegables. Dentro de cada feria: primero a quién contactar ahora. */
 var fechaFeria=new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',year:'numeric'});
 function groups(list,byNew){
@@ -165,7 +219,7 @@ function groups(list,byNew){
     if(x!==y)return x<y?1:-1;
     return a.localeCompare(b,'es');
   });
-  var auto=!!S.q||S.filtro!=='todos';
+  var auto=!!S.q||S.filtro!=='todos'||fActive();
   var rank=function(c){return isAlert(c)?0:c.estado==='Por contactar'?1:2;};
   return order.map(function(k){
     var cs=G[k].slice().sort(function(a,b){
@@ -202,11 +256,12 @@ function render(){
   var toolbar='<div class="toolbar">'+CC.searchBox('q-cand','Buscar por nombre, carrera, área o comuna',S.q,'Buscar candidatos')+
     '<button class="btn" data-act="c-import">'+ci('upload',17)+'Importar Excel</button>'+
     '<button class="btn primary" data-act="c-new">'+ic('plus',17)+'Nuevo candidato</button></div>'+
-    '<div class="fchips">'+chips.map(function(c){return '<button class="fchip" data-act="c-filter" data-v="'+c[0]+'" aria-pressed="'+(S.filtro===c[0])+'">'+c[1]+'</button>';}).join('')+'</div>';
+    '<div class="fchips">'+chips.map(function(c){return '<button class="fchip" data-act="c-filter" data-v="'+c[0]+'" aria-pressed="'+(S.filtro===c[0])+'">'+c[1]+'</button>';}).join('')+'</div>'+fBar();
   var q=nz(S.q);
   var list=S.items.filter(function(c){
     if(S.filtro==='alerta'&&!isAlert(c))return false;
     if((S.filtro==='Práctica'||S.filtro==='Trabajo')&&c.tipo!==S.filtro)return false;
+    if(!fMatch(c))return false;
     return !q||nz([c.nombre,c.carrera,c.universidad,c.feria,c.correo,c.notas,c.area,c.nivel,c.telefono,c.comuna].join(' ')).indexOf(q)>-1;
   });
   var byNew=function(a,b){return a.creado<b.creado?1:a.creado>b.creado?-1:0;};
@@ -214,9 +269,9 @@ function render(){
   if(!S.items.length){
     body=gate(ci('user',24),'Aún no hay candidatos','Registra a las personas que entrevistes en cada feria, con el mes en que empiezan a buscar. La app te avisará cuando sea momento de contactarlas.','<div class="adm-actions"><button class="btn primary" data-act="c-new">'+ic('plus',17)+'Registrar el primero</button><button class="btn" data-act="c-import">'+ci('upload',17)+'Importar desde Excel</button></div>');
   }else if(!list.length){
-    body='<p class="none">Ningún candidato coincide con la búsqueda.</p>';
+    body='<p class="none">Ningún candidato coincide con la búsqueda o los filtros.'+(fActive()?' <button class="linkbtn" data-act="c-fclearall">Limpiar filtros</button>':'')+'</p>';
   }else{
-    body=groups(list,byNew);
+    body=((q||fActive()||S.filtro!=='todos')?'<p class="fcount"><b>'+list.length+'</b> '+(list.length===1?'candidato coincide':'candidatos coinciden')+'</p>':'')+groups(list,byNew);
   }
   var who='<div class="whoami"><span></span><button class="linkbtn" data-act="c-reload">'+ci('refresh',14)+'Actualizar candidatos</button></div>';
   CC.keepFocus('q-cand',stats+toolbar+'<div class="stack">'+body+'</div>'+who,el);
@@ -692,6 +747,11 @@ document.addEventListener('click',function(e){
   if(act==='c-goto'){S.filtro=b.getAttribute('data-v')||'todos';S.open={};CC.goCand();render();window.scrollTo(0,0);return;}
   if(act==='c-feria'){showFeria(b.getAttribute('data-id'));return;}
   if(act==='c-newf'){openForm(null,b.getAttribute('data-id'));return;}
+  if(act==='c-fopen'){var k=b.getAttribute('data-k');S.fOpen=S.fOpen===k?'':k;render();var fq=$('cf-fq');if(fq)fq.focus();return;}
+  if(act==='c-fclose'){S.fOpen='';render();return;}
+  if(act==='c-fclear'){S.f[b.getAttribute('data-k')]=[];S.open={};render();return;}
+  if(act==='c-fclearall'){S.f={};S.fOpen='';S.open={};render();return;}
+  if(act==='c-funset'){var fk=b.getAttribute('data-k'),fv=b.getAttribute('data-v');S.f[fk]=(S.f[fk]||[]).filter(function(x){return x!==fv;});S.open={};render();return;}
   if(act==='c-delgroup'){openDelGroup(b.getAttribute('data-g'));return;}
   if(act==='c-csvgroup'){groupCsv(b.getAttribute('data-g'));return;}
 });
@@ -704,7 +764,13 @@ document.addEventListener('submit',function(e){
     if(id==='csheet')save();else if(id==='cpass')savePass();else runImport();
   }
 },true);
+/* Cerrar la lista de opciones al tocar fuera de ella o con Escape. */
+document.addEventListener('pointerdown',function(e){
+  if(S.fOpen&&!e.target.closest('.fwrap')){S.fOpen='';render();}
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&S.fOpen){S.fOpen='';render();}});
 document.addEventListener('input',function(e){
+  if(e.target.id==='cf-fq'){var q2=nz(e.target.value);Array.prototype.forEach.call(document.querySelectorAll('.fpop-op'),function(l){l.hidden=!!q2&&l.getAttribute('data-txt').indexOf(q2)<0;});return;}
   if(e.target.id==='q-cand'){S.q=e.target.value;S.open={};render();}
 });
 document.addEventListener('change',function(e){
@@ -717,6 +783,11 @@ document.addEventListener('change',function(e){
     if(t.hasAttribute('data-im')){var it=M.items[+t.getAttribute('data-im')];it.c.buscaDesde=validYm(t.value)?t.value:'';impPaint();return;}
     if(t.id==='cf-if')M.feria=t.value;else if(t.id==='cf-it')M.tipo=t.value;else if(t.id==='cf-ic')M.consent=t.checked;
     return;
+  }
+  if(t.hasAttribute&&t.hasAttribute('data-fk')){
+    var k=t.getAttribute('data-fk'),v=t.getAttribute('data-fv'),cur=(S.f[k]||[]).filter(function(x){return x!==v;});
+    if(t.checked)cur.push(v);S.f[k]=cur;S.open={};
+    var tid=t.id;render();var again=$(tid);if(again)again.focus();return;
   }
   if(t.id==='cf-cv'){
     S.file=t.files&&t.files[0]||null;
