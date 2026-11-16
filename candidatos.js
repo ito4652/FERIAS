@@ -180,7 +180,8 @@ function groups(list,byNew){
       '<summary><span class="fg-ic">'+(k&&CC.feriaMark?CC.feriaMark(feriaDe(k)||{nombre:k}):ic('cal',18))+'</span><span class="fg-main"><span class="fg-name">'+esc(k||'Sin feria')+'</span><span class="fg-sub">'+esc(sub)+'</span></span>'+
       (nAl?'<span class="pill warn">'+nAl+' por contactar</span>':'')+'<span class="fg-chev">'+ic('chev',18)+'</span></summary>'+
       '<div class="list">'+cs.map(function(c){return row(c,true);}).join('')+
-      (k&&feriaDe(k)?'<button class="linkbtn fg-add" data-act="c-newf" data-id="'+esc(feriaDe(k).id)+'">'+ic('plus',15)+'Agregar candidato a esta feria</button>':'')+'</div></details>';
+      '<div class="fg-actions">'+(k&&feriaDe(k)?'<button class="linkbtn fg-add" data-act="c-newf" data-id="'+esc(feriaDe(k).id)+'">'+ic('plus',15)+'Agregar candidato a esta feria</button>':'<span></span>')+
+      '<button class="linkbtn fg-del" data-act="c-delgroup" data-g="'+esc(k)+'">'+ic('x',15)+'Eliminar '+(G[k].length===1?'el candidato':'los '+delCount(k)+' candidatos')+' de '+(k?'esta feria':'este grupo')+'</button></div></div></details>';
   }).join('');
 }
 function gate(icon,title,text,extra){
@@ -305,6 +306,53 @@ function openForm(id,presetFeria){
     '<div class="fld full"><label class="ckline"><input type="checkbox" id="cf-consent"'+(rec.consentimiento?' checked':'')+'><span>El candidato autorizó que guardemos sus datos y su CV para futuros procesos de selección.</span></label></div>';
   sheet('csheet',id?'Editar candidato':'Nuevo candidato',f,id?'<button class="btn danger" type="button" data-act="c-delete" id="c-del">Eliminar</button>':'');
   var n=$('cf-nombre');if(n)n.focus();
+}
+/* ---------- Eliminar todos los candidatos de una feria ---------- */
+function ofGroup(k){return S.items.filter(function(c){return (c.feria||'')===k;});}
+function delCount(k){return ofGroup(k).length;}
+function groupCsv(k){
+  var cs=ofGroup(k);if(!cs.length)return;
+  var cols=[['Nombre','nombre'],['Feria','feria'],['Busca','tipo'],['Empieza a buscar','buscaDesde'],['Carrera','carrera'],['Universidad','universidad'],['Año o situación','nivel'],['Área de interés','area'],['Comuna','comuna'],['Correo','correo'],['Teléfono','telefono'],['Estado','estado'],['Evaluación','evaluacion'],['Entrevistó','entrevistador'],['Notas','notas']];
+  var rows=[cols.map(function(c){return c[0];})].concat(cs.map(function(c){return cols.map(function(x){return c[x[1]];});}));
+  var csv='\uFEFF'+rows.map(function(r){return r.map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}).join(';');}).join('\r\n');
+  var url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  var a=document.createElement('a');a.href=url;a.download='candidatos-'+slug(k||'sin-feria')+'.csv';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},2000);
+  toast('Lista descargada. Tiene datos personales: guárdala en un lugar privado.');
+}
+function openDelGroup(k){
+  var cs=ofGroup(k);if(!cs.length)return;
+  var ncv=cs.filter(function(c){return c.cvPath;}).length;S.delG=k;S.busy=false;
+  $('sheet-root').innerHTML='<div class="backdrop" data-act="backdrop"><form class="sheet" id="cdelg" role="dialog" aria-modal="true" aria-labelledby="cdelg-t" novalidate>'+
+    '<h2 id="cdelg-t">Eliminar candidatos de '+esc(k||'Sin feria')+'</h2>'+
+    '<p class="delg-warn">Vas a eliminar <b>'+cs.length+(cs.length===1?' candidato':' candidatos')+'</b>'+(ncv?' y <b>'+ncv+(ncv===1?' CV':' CV')+'</b>':'')+'. <b>No se puede deshacer.</b></p>'+
+    '<button type="button" class="btn" data-act="c-csvgroup" data-g="'+esc(k)+'">'+ic('down',16)+'Descargar la lista primero</button>'+
+    '<div class="fields"><div class="fld full"><label for="cf-delok">Para confirmar, escribe ELIMINAR</label><input id="cf-delok" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false"></div></div>'+
+    '<div class="ferr" id="cferr" role="alert"></div>'+
+    '<div class="sheet-actions"><button class="btn danger" type="submit" id="c-save">Eliminar '+cs.length+'</button><button class="btn" type="button" data-act="close">Cancelar</button></div></form></div>';
+  var f=$('cf-delok');if(f)f.focus();
+}
+async function runDelGroup(){
+  if(S.busy)return;
+  var k=S.delG,cs=ofGroup(k);if(!cs.length){CC.closeSheet();return;}
+  if(cv('delok').toUpperCase()!=='ELIMINAR'){ferr('Escribe ELIMINAR para confirmar.');var f=$('cf-delok');if(f)f.focus();return;}
+  setBusy(true,'Eliminando…');
+  var ids=cs.map(function(c){return c.id;}),paths=cs.map(function(c){return c.cvPath;}).filter(Boolean),hechos=[];
+  try{
+    for(var i=0;i<ids.length;i+=100){
+      var parte=ids.slice(i,i+100);
+      chk(await sb.from(TABLE).delete().in('id',parte));
+      hechos=hechos.concat(parte);
+    }
+    for(var j=0;j<paths.length;j+=100){try{await sb.storage.from(BUCKET).remove(paths.slice(j,j+100));}catch(e){}}
+    S.items=S.items.filter(function(c){return hechos.indexOf(c.id)<0;});
+    delete S.open[k];CC.closeSheet();S.busy=false;S.delG=null;
+    toast(hechos.length+(hechos.length===1?' candidato eliminado':' candidatos eliminados'));repaint();
+  }catch(e){
+    S.items=S.items.filter(function(c){return hechos.indexOf(c.id)<0;});
+    setBusy(false);var b=$('c-save');if(b)b.textContent='Eliminar '+ofGroup(k).length;
+    ferr((hechos.length?'Se eliminaron '+hechos.length+', pero no todos. ':'')+errMsg(e));repaint();
+  }
 }
 function openPass(){
   S.edit={pass:true};S.busy=false;
@@ -644,10 +692,13 @@ document.addEventListener('click',function(e){
   if(act==='c-goto'){S.filtro=b.getAttribute('data-v')||'todos';S.open={};CC.goCand();render();window.scrollTo(0,0);return;}
   if(act==='c-feria'){showFeria(b.getAttribute('data-id'));return;}
   if(act==='c-newf'){openForm(null,b.getAttribute('data-id'));return;}
+  if(act==='c-delgroup'){openDelGroup(b.getAttribute('data-g'));return;}
+  if(act==='c-csvgroup'){groupCsv(b.getAttribute('data-g'));return;}
 });
 /* Los formularios de candidatos se manejan aquí, no con el guardado de data.json de app.js. */
 document.addEventListener('submit',function(e){
   var id=e.target&&e.target.id;
+  if(id==='cdelg'){e.preventDefault();e.stopPropagation();runDelGroup();return;}
   if(id==='csheet'||id==='cpass'||id==='cimp'){
     e.preventDefault();e.stopPropagation();
     if(id==='csheet')save();else if(id==='cpass')savePass();else runImport();

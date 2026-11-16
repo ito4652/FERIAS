@@ -889,3 +889,9 @@ html.locked .gate{display:block}
 .sheet.nudge{animation:sheetNudge .45s ease;box-shadow:0 0 0 3px var(--warn),var(--shadow)}
 @keyframes sheetNudge{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
 @media (prefers-reduced-motion:reduce){.sheet.nudge{animation:none}}
+.fg-actions{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-top:10px}
+.fg-actions .fg-add{margin-top:0}
+.fg-del{display:inline-flex;align-items:center;gap:6px;color:var(--bad)!important}
+.delg-warn{margin:0;font-size:15px;color:var(--ink)}
+.delg-warn b{color:var(--bad)}
+#cdelg>.btn{align-self:flex-start;display:inline-flex;align-items:center;gap:6px}
