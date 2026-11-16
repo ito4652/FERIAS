@@ -32,6 +32,9 @@ var P={
   chev:'<path d="m9 6 6 6-6 6"/>',
   chevl:'<path d="m15 6-6 6 6 6"/>',
   gift:'<rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8c-1.5-3-5-3.5-5-1.2C7 8 9 8 12 8zm0 0c1.5-3 5-3.5 5-1.2C17 8 15 8 12 8z"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  chat:'<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19.2z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 .8c-.9-.4-1.9-1.4-2.3-2.3l.8-1-1-2z"/>',
+  copy:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
   ext:'<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
   users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>'
@@ -1408,16 +1411,29 @@ function cargoRank(c){
   return 6;
 }
 function byCargo(a,b){var x=cargoRank(a.cargo),y=cargoRank(b.cargo);return x!==y?x-y:byName(a,b);}
+/* Tarjeta de perfil: foto grande, cargo, botones de contacto y cumpleaños en la esquina. */
 function eqCard(p){
-  var cmm=/^(\d{2})-(\d{2})$/.exec(p.cumple||'');
-  var bd=cmm?'<div class="cline bday">'+ic('cake',15)+'<span>Cumple el '+(+cmm[2])+' de '+MESES[+cmm[1]-1]+'</span></div>':'';
-  var mail=p.correo?'<div class="cline"><a href="mailto:'+esc(p.correo)+'">'+esc(p.correo)+'</a><button class="copy" data-act="copy" data-text="'+esc(p.correo)+'" aria-label="Copiar correo">Copiar</button></div>':'';
-  var tel=p.telefono?'<div class="cline"><a href="tel:'+esc(String(p.telefono).replace(/[^\d+]/g,''))+'">'+esc(p.telefono)+'</a><button class="copy" data-act="copy" data-text="'+esc(p.telefono)+'" aria-label="Copiar teléfono">Copiar</button></div>':'';
-  return '<article class="pcard">'+
-    '<div class="phead">'+(p.foto?'<img class="ph" src="'+esc(p.foto)+'" alt="Foto de '+esc(p.nombre)+'" loading="lazy">':avatar(p.nombre,'xl'))+
-    '<div class="pinfo"><div class="name">'+esc(p.nombre)+'</div>'+(p.cargo?'<div class="meta">'+esc(p.cargo)+'</div>':'')+'</div>'+
-    (ADMIN?'<div class="act">'+editBtn('eq',p.id,p.nombre)+'</div>':'')+'</div>'+
-    ((mail||tel||bd)?'<div class="pcontact">'+mail+tel+bd+'</div>':'<div class="none">Sin datos de contacto</div>')+
+  var cmm=/^(\d{2})-(\d{2})$/.exec(p.cumple||''),badge='';
+  if(cmm){
+    var hoy=new Date(),y=hoy.getFullYear(),d=new Date(y,+cmm[1]-1,+cmm[2]),base=new Date(y,hoy.getMonth(),hoy.getDate());
+    if(d<base)d=new Date(y+1,+cmm[1]-1,+cmm[2]);
+    var n=Math.round((d-base)/864e5),pronto=n<=30;
+    badge='<span class="eq-bday'+(pronto?' soon':'')+'" title="Cumpleaños'+(n===0?': ¡hoy!':pronto?' en '+n+' días':'')+'">'+ic('cake',13)+(n===0?'¡Hoy!':(+cmm[2])+' '+MESES[+cmm[1]-1].slice(0,3))+'</span>';
+  }
+  var tel=String(p.telefono||'').replace(/[^\d+]/g,''),wa=tel.replace(/^\+/,'');
+  if(/^9\d{8}$/.test(wa))wa='56'+wa;
+  var first=String(p.nombre||'').split(/\s+/)[0];
+  var datos=[p.nombre,p.cargo,p.correo,p.telefono].filter(Boolean).join('\n');
+  var acts=(p.correo?'<a class="eq-act" href="mailto:'+esc(p.correo)+'" aria-label="Enviar correo a '+esc(first)+'" title="Correo">'+ic('mail',18)+'</a>':'')+
+    (tel?'<a class="eq-act" href="tel:'+esc(tel)+'" aria-label="Llamar a '+esc(first)+'" title="Llamar">'+ic('phone',18)+'</a>':'')+
+    (wa.length>=9?'<a class="eq-act" href="https://wa.me/'+esc(wa)+'" target="_blank" rel="noopener" aria-label="WhatsApp a '+esc(first)+'" title="WhatsApp">'+ic('chat',18)+'</a>':'')+
+    ((p.correo||tel)?'<button class="eq-act alt" data-act="copy" data-text="'+esc(datos)+'" aria-label="Copiar datos de '+esc(first)+'" title="Copiar datos">'+ic('copy',18)+'</button>':'');
+  return '<article class="eq-card'+(badge.indexOf(' soon')>-1?' soon':'')+'">'+
+    (ADMIN?'<div class="eq-edit">'+editBtn('eq',p.id,p.nombre)+'</div>':'')+badge+
+    '<div class="eq-ph">'+(p.foto?'<img src="'+esc(p.foto)+'" alt="Foto de '+esc(p.nombre)+'" loading="lazy">':avatar(p.nombre,'xl'))+'</div>'+
+    '<div class="eq-who"><span class="eq-n">'+esc(p.nombre)+'</span>'+(p.cargo?'<span class="eq-cargo">'+esc(p.cargo)+'</span>':'')+'</div>'+
+    (acts?'<div class="eq-acts">'+acts+'</div>':'')+
+    ((p.correo||p.telefono)?'<div class="eq-data">'+(p.correo?'<span>'+esc(p.correo)+'</span>':'')+(p.telefono?'<span>'+esc(p.telefono)+'</span>':'')+'</div>':'<div class="none">Sin datos de contacto</div>')+
   '</article>';
 }
 function renderAsistencia(){
@@ -1451,8 +1467,9 @@ function renderEquipo(){
   var body;
   if(!state.equipo.length) body=emptyBlock('book',ADMIN?'Aún no hay personas':'Aún no hay personas registradas',ADMIN?'Agrega a cada integrante con foto, cargo, correo y teléfono.':'Cuando se agreguen, las verás aquí.','<button class="btn primary" data-act="new" data-kind="eq">'+ic('plus',17)+'Agregar la primera persona</button>');
   else if(!list.length) body='<p class="none">Nadie coincide con la búsqueda.</p>';
-  else body='<div class="pgrid">'+list.map(eqCard).join('')+'</div>';
-  keepFocus('q-eq',toolbar+'<div class="stack">'+body+'</div>',el);
+  else body='<div class="eq-grid">'+list.map(eqCard).join('')+'</div>';
+  var head='<div class="cu-head pf-top"><div><h2>Nuestro equipo</h2><p class="pf-sub">'+state.equipo.length+(state.equipo.length===1?' persona':' personas')+' · toca un botón para escribir, llamar o copiar</p></div>'+toolbar.replace('<div class="toolbar">','<div class="cu-tools">')+'</div>';
+  keepFocus('q-eq','<div class="cu">'+head+body+'</div>',el);
 }
 function renderFoot(){
   var f=$('foot');if(!f)return;
