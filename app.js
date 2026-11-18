@@ -1692,6 +1692,7 @@ function remove(){
   else if(state.edit.kind==='evdo') state.eventosdo=state.eventosdo.filter(function(r){return r.id!==id;});
   else if(state.edit.kind==='aviso') state.avisos=state.avisos.filter(function(r){return r.id!==id;});
   else if(state.edit.kind==='cumple') state.cumpleanos=state.cumpleanos.filter(function(r){return r.id!==id;});
+  else if(state.edit.kind==='jp') state.jornadas=state.jornadas.filter(function(r){return r.id!==id;});
   else state.contactos=state.contactos.filter(function(r){return r.id!==id;});
   persist();closeSheet();renderAll();toast('Eliminado');
 }
