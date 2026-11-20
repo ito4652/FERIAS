@@ -108,7 +108,7 @@ function render(){
     '<button class="btn" data-act="dc-folder">'+di('folder',17)+'Subir carpeta</button>'+
     '<button class="btn primary" data-act="dc-new">'+ic('plus',17)+'Nuevo descriptor</button></div></div>';
   var body;
-  if(!S.items.length)body='<div class="empty"><div class="badge">'+di('doc',24)+'</div><h2>Aún no hay descriptores</h2><p>Agrega cada cargo con su gerencia, a quién reporta, su estado y el documento del descriptor.</p><div class="adm-actions"><button class="btn primary" data-act="dc-new">'+ic('plus',17)+'Agregar uno</button><button class="btn" data-act="dc-multi">'+di('upload',17)+'Subir varios documentos</button></div></div>';
+  if(!S.items.length)body='<div class="empty"><div class="badge">'+di('doc',24)+'</div><h2>Aún no hay descriptores</h2><p>Agrega cada cargo con su gerencia, a quién reporta, su estado y el documento del descriptor.</p><div class="dc-drop big" data-act="dc-folder" role="button" tabindex="0">'+di('folder',26)+'<span><b>Arrastra aquí tu carpeta de descriptores</b><br>o la de una gerencia. También puedes elegirla con un clic.</span></div><div class="adm-actions"><button class="btn primary" data-act="dc-new">'+ic('plus',17)+'Agregar uno</button><button class="btn" data-act="dc-multi">'+di('upload',17)+'Subir varios documentos</button></div></div>';
   else if(!list.length)body='<p class="none">Ningún descriptor coincide con la búsqueda o los filtros.</p>';
   else{
     var G={},order=[];
@@ -119,7 +119,8 @@ function render(){
         G[k].sort(function(a,b){return a.cargo.localeCompare(b.cargo,'es');}).map(card).join('')+'</div></section>';
     }).join('');
   }
-  CC.keepFocus('q-dc','<div class="cu">'+head+body+'</div>',el);
+  var drop='<div class="dc-drop" data-act="dc-folder" role="button" tabindex="0">'+di('folder',22)+'<span><b>Arrastra aquí una carpeta o varios archivos</b><br>PDF o Word. La gerencia se detecta desde el nombre de la carpeta.</span></div>';
+  CC.keepFocus('q-dc','<div class="cu">'+head+(S.items.length?drop:'')+body+'</div>',el);
 }
 
 /* ---------- Formulario ---------- */
@@ -199,11 +200,13 @@ function cargoDeArchivo(n){
 function buscarCargo(cargo){var k=nz(cargo);return k?S.items.filter(function(c){return nz(c.cargo)===k;})[0]||null:null;}
 function bAcc(it){return it.big?'<span class="pill bad">Pesa más de '+MAX_MB+' MB</span>':!it.cargo.trim()?'<span class="pill warn">Falta el cargo</span>':it.match?'<span class="pill mat">Reemplaza documento</span>':'<span class="pill ok">Nuevo descriptor</span>';}
 function openBulk(files){
-  files=Array.prototype.slice.call(files||[]).filter(function(f){return /\.(pdf|docx?)$/i.test(f.name);});
-  if(!files.length){toast('Elige archivos PDF o Word.');return;}
-  S.bulk={items:files.map(function(f){
-    var c=cargoDeArchivo(f.name),m=buscarCargo(c),big=f.size>MAX_MB*1024*1024;
-    var segs=String(f.webkitRelativePath||'').split('/').slice(0,-1),g='';
+  var ent=Array.prototype.slice.call(files||[]).map(function(x){return x&&x.file?x:{file:x,path:x&&x.webkitRelativePath||''};})
+    .filter(function(x){return x.file&&/\.(pdf|docx?)$/i.test(x.file.name)&&!/^~\$/.test(x.file.name);});
+  if(!ent.length){toast('No encontré archivos PDF o Word para subir.');return;}
+  files=ent.map(function(x){return x.file;});
+  S.bulk={items:ent.map(function(x){
+    var f=x.file,c=cargoDeArchivo(f.name),m=buscarCargo(c),big=f.size>MAX_MB*1024*1024;
+    var segs=String(x.path||'').split('/').filter(Boolean).slice(0,-1),g='';
     for(var k=segs.length-1;k>=0&&!g;k--)g=gerDe(segs[k]);
     return {file:f,cargo:c,on:!big,match:m?m.id:null,big:big,ger:g||(m?m.gerencia:'')};
   }),busy:false};
@@ -257,6 +260,39 @@ async function runBulk(){
   render();ferr('Se guardaron '+ok+'. No se pudieron subir: '+mal.join(' · '));if(btn){btn.disabled=false;btn.textContent='Cerrar';btn.setAttribute('data-done','1');}
 }
 
+/* ---------- Arrastrar y soltar carpetas o archivos ---------- */
+function leerEntrada(entry,out){
+  return new Promise(function(res){
+    if(!entry){res();return;}
+    if(entry.isFile){entry.file(function(f){out.push({file:f,path:(entry.fullPath||f.name).replace(/^\//,'')});res();},function(){res();});return;}
+    if(entry.isDirectory){
+      var rd=entry.createReader(),todos=[];
+      (function lote(){rd.readEntries(function(es){
+        if(!es.length){Promise.all(todos.map(function(e){return leerEntrada(e,out);})).then(res);return;}
+        todos=todos.concat(Array.prototype.slice.call(es));lote();
+      },function(){res();});})();
+      return;
+    }
+    res();
+  });
+}
+function dcVisible(){var el=$('panel-dc');return el&&!el.hidden&&S.status==='ok';}
+function tieneArchivos(e){var t=e.dataTransfer&&e.dataTransfer.types;return !!t&&Array.prototype.indexOf.call(t,'Files')>-1;}
+var dragN=0;
+document.addEventListener('dragenter',function(e){if(!dcVisible()||!tieneArchivos(e)||$('sheet-root').firstChild)return;dragN++;$('panel-dc').classList.add('dragging');});
+document.addEventListener('dragleave',function(){if(!dcVisible())return;dragN=Math.max(0,dragN-1);if(!dragN)$('panel-dc').classList.remove('dragging');});
+document.addEventListener('dragover',function(e){if(dcVisible()&&tieneArchivos(e)&&!$('sheet-root').firstChild){e.preventDefault();e.dataTransfer.dropEffect='copy';}});
+document.addEventListener('drop',function(e){
+  if(!dcVisible()||!tieneArchivos(e)||$('sheet-root').firstChild)return;
+  e.preventDefault();dragN=0;$('panel-dc').classList.remove('dragging');
+  var dt=e.dataTransfer,entries=[];
+  /* Las entradas se leen en el mismo momento del soltado; después el navegador ya no las entrega. */
+  if(dt.items)for(var i=0;i<dt.items.length;i++){var it=dt.items[i];if(it.kind==='file'){var en=it.webkitGetAsEntry?it.webkitGetAsEntry():null;if(en)entries.push(en);}}
+  if(!entries.length){openBulk(dt.files);return;}
+  toast('Leyendo archivos…');
+  var out=[];Promise.all(entries.map(function(en){return leerEntrada(en,out);})).then(function(){openBulk(out);});
+});
+
 /* ---------- Eventos ---------- */
 document.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b)return;
@@ -270,6 +306,7 @@ document.addEventListener('click',function(e){
   if(act==='dc-reload'){load();return;}
   if(act==='dc-fe'){S.fe=b.getAttribute('data-v');render();return;}
 });
+document.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('dc-drop')){e.preventDefault();e.target.click();}});
 document.addEventListener('submit',function(e){
   if(e.target&&e.target.id==='dcsheet'){e.preventDefault();e.stopPropagation();save();}
   if(e.target&&e.target.id==='dcbulk'){e.preventDefault();e.stopPropagation();var b=$('dc-save');if(b&&b.getAttribute('data-done')){CC.closeSheet();S.bulk=null;return;}runBulk();}

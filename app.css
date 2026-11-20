@@ -983,3 +983,11 @@ html.locked .gate{display:block}
 .dcb-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .itable input[type=text]{min-height:38px;padding:6px 10px;font-size:13.5px;width:100%;min-width:180px}
 .cu-tools .btn{display:inline-flex;align-items:center;gap:6px}
+/* DC: zona para arrastrar carpetas */
+.dc-drop{display:flex;align-items:center;gap:14px;padding:14px 18px;border:2px dashed color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:16px;background:color-mix(in srgb,var(--accent-soft) 35%,var(--surface));color:var(--muted);font-size:13.5px;cursor:pointer;text-align:left}
+.dc-drop b{color:var(--ink);font-size:14.5px}
+.dc-drop .ic{flex:none;color:var(--accent-strong)}
+.dc-drop:hover,.dc-drop:focus-visible{border-color:var(--accent);outline:none}
+.dc-drop.big{flex-direction:column;text-align:center;padding:26px 20px;margin:6px 0 10px}
+#panel-dc{position:relative}
+#panel-dc.dragging::after{content:"Suelta aquí para subir los descriptores";position:absolute;inset:-8px;z-index:20;display:grid;place-items:center;border:3px dashed var(--accent);border-radius:20px;background:color-mix(in srgb,var(--accent-soft) 85%,transparent);font:800 20px var(--f-body);color:var(--accent-strong);pointer-events:none}
