@@ -3,7 +3,7 @@
 /* Modo "view": solo lectura (index.html). Modo "admin": edita en el navegador y publica en Supabase (admin.html). */
 var ADMIN=document.documentElement.getAttribute('data-mode')==='admin';
 var DRAFT_KEY='ferias-borrador-v1';
-var state={sub:'calendario',jornadas:[],agenda:[],wk:0,agDel:false,jpq:{},ferias:[],contactos:[],cumpleanos:[],avisos:[],plataformas:[],eventosdo:[],equipo:[],pq:'',dq:'',eq:'',status:'loading',published:'',updated:'',tab:'inicio',q:'',estado:'todos',cq:'',cuq:'',
+var state={sub:'calendario',doSub:'procesos',jornadas:[],agenda:[],wk:0,agDel:false,jpq:{},ferias:[],contactos:[],cumpleanos:[],avisos:[],plataformas:[],eventosdo:[],equipo:[],pq:'',dq:'',eq:'',status:'loading',published:'',updated:'',tab:'inicio',q:'',estado:'todos',cq:'',cuq:'',
   edit:null,armed:false,discardArmed:false,lastLoad:0};
 var ESTADOS={confirmada:['Confirmada','ok'],porconfirmar:['Por confirmar','warn'],cancelada:['Cancelada','bad']};
 var MATERIALES={pendon:'Pendón',stand:'Stand',nada:'Nada'};
@@ -68,7 +68,8 @@ function sig(){
 function isDirty(){return ADMIN&&state.status==='ok'&&sig()!==state.published;}
 function norm(arr){return (Array.isArray(arr)?arr:[]).filter(function(r){return r&&typeof r==='object';}).map(function(r){if(!r.id)r.id=newId();return r;});}
 
-try{var saved=localStorage.getItem('ferias-tab');if(saved==='inicio'||saved==='ferias'||saved==='cumpleanos'||saved==='plataformas'||saved==='do'||saved==='equipo'||saved==='jp')state.tab=saved;else if(saved==='candidatos'){state.tab='ferias';state.sub='candidatos';}else if(saved==='contactos'){state.tab='ferias';state.sub='directorio';}
+try{var saved=localStorage.getItem('ferias-tab');if(saved==='inicio'||saved==='ferias'||saved==='cumpleanos'||saved==='plataformas'||saved==='do'||saved==='equipo'||saved==='dc')state.tab=saved;else if(saved==='jp'){state.tab='do';state.doSub='jp';}else if(saved==='candidatos'){state.tab='ferias';state.sub='candidatos';}else if(saved==='contactos'){state.tab='ferias';state.sub='directorio';}
+  if(localStorage.getItem('ferias-dosub')==='jp')state.doSub='jp';
   var ssub=localStorage.getItem('ferias-sub');if(ssub==='calendario'||ssub==='directorio'||ssub==='asistencia'||ssub==='candidatos')state.sub=ssub;}catch(e){}
 $('brand').innerHTML=ic('cal',24);
 if(!$('panel-inicio')){
@@ -82,7 +83,7 @@ if(!$('panel-inicio')){
   pa.id='panel-'+k;pa.className='panel';pa.setAttribute('role','tabpanel');pa.hidden=true;
   $('panel-contactos').after(pa);
 });
-['jp','candidatos','plataformas','do','equipo'].forEach(function(k){
+['jp','dc','candidatos','plataformas','do','equipo'].forEach(function(k){
   if($('panel-'+k))return;
   var pp=document.createElement('section');
   pp.id='panel-'+k;pp.className='panel';pp.setAttribute('role','tabpanel');pp.hidden=true;
@@ -282,20 +283,28 @@ function persist(){
 }
 
 /* ---------- Render ---------- */
+function goTab(t){
+  if(t==='jp'){state.doSub='jp';try{localStorage.setItem('ferias-dosub','jp');}catch(x){}return 'do';}
+  return t;
+}
 function renderTabs(){
   var ok=state.status==='ok';
   $('tabs').innerHTML=
     '<button class="tab" role="tab" data-act="tab" data-tab="inicio" aria-selected="'+(state.tab==='inicio')+'">Inicio</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="ferias" aria-selected="'+(state.tab==='ferias')+'">Ferias<span class="n">'+(window.CandHooks?window.CandHooks.badge():'')+'</span></button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="do" aria-selected="'+(state.tab==='do')+'">DO</button>'+
-    '<button class="tab" role="tab" data-act="tab" data-tab="jp" aria-selected="'+(state.tab==='jp')+'" title="Jóvenes Profesionales">JP</button>'+
+    '<button class="tab" role="tab" data-act="tab" data-tab="dc" aria-selected="'+(state.tab==='dc')+'" title="Descriptores de cargo">DC</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="plataformas" aria-selected="'+(state.tab==='plataformas')+'">Plataformas</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="cumpleanos" aria-selected="'+(state.tab==='cumpleanos')+'">Cumpleaños</button>'+
     '<button class="tab" role="tab" data-act="tab" data-tab="equipo" aria-selected="'+(state.tab==='equipo')+'">Equipo</button>';
   var sel=$('tabs').querySelector('[aria-selected="true"]');if(sel&&sel.scrollIntoView){try{sel.scrollIntoView({inline:'center',block:'nearest'});}catch(e){}}
   var sb=$('subtabs');
-  sb.hidden=state.tab!=='ferias';
-  sb.innerHTML='<button class="fchip" role="tab" data-act="sub" data-v="calendario" aria-selected="'+(state.sub==='calendario')+'" aria-pressed="'+(state.sub==='calendario')+'">'+ic('cal',16)+'Calendario</button>'+
+  sb.hidden=state.tab!=='ferias'&&state.tab!=='do';
+  if(state.tab==='do'){
+    var dj=state.doSub==='jp';
+    sb.innerHTML='<button class="fchip" role="tab" data-act="dosub" data-v="procesos" aria-selected="'+!dj+'" aria-pressed="'+!dj+'">'+ic('cal',16)+'Procesos</button>'+
+      '<button class="fchip" role="tab" data-act="dosub" data-v="jp" aria-selected="'+dj+'" aria-pressed="'+dj+'">'+ic('users',16)+'Jóvenes Profesionales</button>';
+  }else sb.innerHTML='<button class="fchip" role="tab" data-act="sub" data-v="calendario" aria-selected="'+(state.sub==='calendario')+'" aria-pressed="'+(state.sub==='calendario')+'">'+ic('cal',16)+'Calendario</button>'+
     (window.CandHooks?'<button class="fchip" role="tab" data-act="sub" data-v="candidatos" aria-selected="'+(state.sub==='candidatos')+'" aria-pressed="'+(state.sub==='candidatos')+'">'+ic('users',16)+'Candidatos'+(window.CandHooks.badge()?'<span class="n">'+window.CandHooks.badge()+'</span>':'')+'</button>':'')+
     '<button class="fchip" role="tab" data-act="sub" data-v="directorio" aria-selected="'+(state.sub==='directorio')+'" aria-pressed="'+(state.sub==='directorio')+'">'+ic('book',16)+'Directorio</button>'+
     '<button class="fchip" role="tab" data-act="sub" data-v="asistencia" aria-selected="'+(state.sub==='asistencia')+'" aria-pressed="'+(state.sub==='asistencia')+'">'+ic('check',16)+'Asistencia</button>';
@@ -303,8 +312,9 @@ function renderTabs(){
   $('panel-inicio').hidden=state.tab!=='inicio';
   $('panel-cumpleanos').hidden=state.tab!=='cumpleanos';
   $('panel-plataformas').hidden=state.tab!=='plataformas';
-  $('panel-do').hidden=state.tab!=='do';
-  $('panel-jp').hidden=state.tab!=='jp';
+  $('panel-do').hidden=!(state.tab==='do'&&state.doSub!=='jp');
+  $('panel-jp').hidden=!(state.tab==='do'&&state.doSub==='jp');
+  $('panel-dc').hidden=state.tab!=='dc';
   $('panel-equipo').hidden=state.tab!=='equipo';
   $('panel-candidatos').hidden=!(state.tab==='ferias'&&state.sub==='candidatos');
   $('panel-contactos').hidden=!(state.tab==='ferias'&&state.sub==='directorio');
@@ -1741,8 +1751,9 @@ document.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b)return;
   var act=b.getAttribute('data-act');
   if(act==='backdrop'){if(e.target===b&&downTarget===b)tryCloseSheet();return;}
-  if(act==='tab'){state.tab=b.getAttribute('data-tab');try{localStorage.setItem('ferias-tab',state.tab);}catch(x){}renderTabs();return;}
-  if(act==='goto'){state.tab=b.getAttribute('data-tab');var gs=b.getAttribute('data-sub');if(gs){state.sub=gs;try{localStorage.setItem('ferias-sub',gs);}catch(x){}}try{localStorage.setItem('ferias-tab',state.tab);}catch(x){}renderTabs();window.scrollTo(0,0);return;}
+  if(act==='dosub'){state.doSub=b.getAttribute('data-v');try{localStorage.setItem('ferias-dosub',state.doSub);}catch(x){}renderTabs();return;}
+  if(act==='tab'){state.tab=goTab(b.getAttribute('data-tab'));try{localStorage.setItem('ferias-tab',state.tab);}catch(x){}renderTabs();return;}
+  if(act==='goto'){if(b.getAttribute('data-tab')==='do'){state.doSub='procesos';try{localStorage.setItem('ferias-dosub','procesos');}catch(x){}}state.tab=goTab(b.getAttribute('data-tab'));var gs=b.getAttribute('data-sub');if(gs){state.sub=gs;try{localStorage.setItem('ferias-sub',gs);}catch(x){}}try{localStorage.setItem('ferias-tab',state.tab);}catch(x){}renderTabs();window.scrollTo(0,0);return;}
   if(act==='sub'){state.sub=b.getAttribute('data-v');try{localStorage.setItem('ferias-sub',state.sub);}catch(x){}renderTabs();return;}
   if(act==='estado'){state.estado=b.getAttribute('data-v');renderFerias();return;}
   if(act==='new'){openSheet(b.getAttribute('data-kind'),null);return;}
