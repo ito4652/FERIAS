@@ -26,10 +26,11 @@ function gerOptions(sel,vacio){
 }
 var EST_CLS={'Vigente':'ok','En revisión':'mat','Por actualizar':'warn'};
 var fFecha=new Intl.DateTimeFormat('es-CL',{day:'numeric',month:'short',year:'numeric'});
-var S={status:'idle',items:[],error:'',q:'',fe:'todos',ger:'',edit:null,file:null,busy:false,armed:false};
+var S={status:'idle',items:[],error:'',q:'',fe:'todos',ger:'',edit:null,file:null,busy:false,armed:false,open:{}};
 
 var I={doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
   alert:'<path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17.5v.5"/>',
+  eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   upload:'<path d="M12 16V4m0 0-4 4m4-4 4 4M5 20h14"/>',
   folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'};
 function di(n,s){s=s||18;return '<svg class="ic" width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+I[n]+'</svg>';}
@@ -81,17 +82,19 @@ async function openDoc(path){
 }
 
 /* ---------- Vista ---------- */
-function card(c){
-  var v=viejo(c);
-  return '<article class="dc-card'+(v?' old':'')+'">'+
-    '<div class="dc-top"><span class="dc-ico">'+di('doc',20)+'</span><div class="dc-t"><span class="dc-cargo">'+esc(c.cargo)+'</span>'+
-      (c.reporta?'<span class="dc-sub">Reporta a: '+esc(c.reporta)+'</span>':'')+'</div>'+
-      '<button class="iconbtn" data-act="dc-edit" data-id="'+esc(c.id)+'" aria-label="Editar '+esc(c.cargo)+'" title="Editar">'+ic('pencil',17)+'</button></div>'+
-    '<div class="dc-mid"><span class="pill '+(EST_CLS[c.estado]||'mat')+'">'+esc(c.estado)+'</span><span class="dc-when'+(v?' warn':'')+'">'+esc(haceTxt(c))+'</span></div>'+
-    '<div class="dc-foot"><span>'+(c.responsable?'Responsable: <b>'+esc(c.responsable)+'</b>':'Sin responsable')+'</span>'+
-      (c.docPath?'<button class="btn dc-open" data-act="dc-doc" data-path="'+esc(c.docPath)+'">'+di('doc',16)+'Ver documento</button>':'<span class="dc-nodoc">Sin documento</span>')+'</div>'+
-    (c.notas?'<details class="notebox"><summary>Notas</summary><div class="notetext">'+esc(c.notas)+'</div></details>':'')+
-  '</article>';
+function fila(c){
+  var v=viejo(c),d=CC.parseDate(c.fecha);
+  var meta=[c.reporta?'Reporta a '+c.reporta:'',c.responsable?'Responsable: '+c.responsable:''].filter(Boolean).join(' · ');
+  var when=d?(v?'Hace más de un año':'')||(fFecha.format(d).replace(/\./g,'').replace(/^\d+ /,'')):'Sin fecha';
+  return '<li class="dcr'+(v?' old':'')+'">'+
+    '<span class="dcr-ico" aria-hidden="true">'+di('doc',17)+'</span>'+
+    '<span class="dcr-main"><span class="dcr-cargo">'+esc(c.cargo)+'</span>'+(meta?'<span class="dcr-meta">'+esc(meta)+'</span>':'')+'</span>'+
+    (c.estado!=='Vigente'?'<span class="pill '+(EST_CLS[c.estado]||'mat')+'">'+esc(c.estado)+'</span>':'')+
+    '<span class="dcr-when'+(v?' warn':'')+'" title="'+esc(haceTxt(c))+'">'+esc(when)+'</span>'+
+    '<span class="dcr-acts">'+
+      (c.docPath?'<button class="dcr-btn" data-act="dc-doc" data-path="'+esc(c.docPath)+'" aria-label="Ver documento de '+esc(c.cargo)+'" title="Ver documento">'+di('eye',17)+'</button>':'<span class="dcr-btn off" title="Sin documento">'+di('doc',17)+'</span>')+
+      '<button class="dcr-btn" data-act="dc-edit" data-id="'+esc(c.id)+'" aria-label="Editar '+esc(c.cargo)+'" title="Editar">'+ic('pencil',16)+'</button>'+
+    '</span></li>';
 }
 function render(){
   var el=$('panel-dc');if(!el)return;
@@ -114,13 +117,22 @@ function render(){
     var G={},order=[];
     list.forEach(function(c){var k=c.gerencia||'';if(!G[k]){G[k]=[];order.push(k);}G[k].push(c);});
     order.sort(function(a,b){return gerOrden(a)-gerOrden(b)||a.localeCompare(b,'es');});
-    body=order.map(function(k){
-      return '<section class="pf-group"><h3 class="do-st">'+esc(k||'Sin gerencia')+' <span>'+G[k].length+'</span></h3><div class="dc-grid">'+
-        G[k].sort(function(a,b){return a.cargo.localeCompare(b.cargo,'es');}).map(card).join('')+'</div></section>';
-    }).join('');
+    var auto=!!q;
+    var todos=order.every(function(k){return S.open[k];});
+    body=(order.length>1&&!auto?'<div class="dcg-tools"><button class="linkbtn" data-act="dc-all">'+(todos?'Contraer todo':'Expandir todo')+'</button></div>':'')+
+      '<div class="dcg-list">'+order.map(function(k){
+        var n=G[k].length,viejos=G[k].filter(viejo).length,open=auto||S.open[k];
+        return '<details class="dcg" data-g="'+esc(k)+'"'+(open?' open':'')+'><summary>'+
+          '<span class="dcg-name">'+esc(k||'Sin gerencia')+'</span>'+
+          (viejos?'<span class="dcg-warn" title="Sin actualizar hace más de un año">'+viejos+' por revisar</span>':'')+
+          '<span class="dcg-n">'+n+'</span><span class="cu-chev" aria-hidden="true">'+ic('chev',18)+'</span></summary>'+
+          '<ul class="dcr-list">'+G[k].sort(function(a,b){return a.cargo.localeCompare(b.cargo,'es');}).map(fila).join('')+'</ul></details>';
+      }).join('')+'</div>';
   }
+  var sucios=S.items.filter(function(c){var l=limpiarCargo(c.cargo);return l&&l!==c.cargo;});
+  var fix=sucios.length?'<div class="dc-fix">'+di('alert',18)+'<span><b>'+sucios.length+(sucios.length===1?' descriptor tiene':' descriptores tienen')+' el nombre del archivo</b> (por ejemplo, «'+esc(sucios[0].cargo)+'» → «'+esc(limpiarCargo(sucios[0].cargo))+'»).</span><button class="btn" data-act="dc-fix">Limpiar nombres</button></div>':'';
   var drop='<div class="dc-drop" data-act="dc-folder" role="button" tabindex="0">'+di('folder',22)+'<span><b>Arrastra aquí una carpeta o varios archivos</b><br>PDF o Word. La gerencia se detecta desde el nombre de la carpeta.</span></div>';
-  CC.keepFocus('q-dc','<div class="cu">'+head+(S.items.length?drop:'')+body+'</div>',el);
+  CC.keepFocus('q-dc','<div class="cu">'+head+fix+(S.items.length?drop:'')+body+'</div>',el);
 }
 
 /* ---------- Formulario ---------- */
@@ -192,11 +204,21 @@ async function del(){
 
 /* ---------- Subir varios documentos de una vez ----------
    El cargo se propone desde el nombre del archivo; si ya existe un descriptor con ese cargo, se le reemplaza el documento. */
-function cargoDeArchivo(n){
-  var t=String(n||'').replace(/\.[a-z0-9]{1,5}$/i,'').replace(/[_\-.]+/g,' ').replace(/\s+/g,' ').trim();
-  t=t.replace(/^(descriptor(es)?( de)?( cargo(s)?)?|dc|perfil( de)?( cargo)?)\s+/i,'').replace(/\s+(v\d+|final|vf|\d{4})$/i,'').trim();
+function limpiarCargo(t){
+  t=String(t||'').replace(/[_\-.]+/g,' ').replace(/\s+/g,' ').trim();
+  var antes;
+  do{
+    antes=t;
+    t=t.replace(/^(pdf|docx?|word|dchr|dc|hr|rrhh|descriptor(es)?( de)?( cargo(s)?)?|perfil( de)?( cargo)?)\s+/i,'')
+       .replace(/^G(ral|eneral|[A-ZÁÉÍÓÚ][a-záéíóúñ]+)(\s+|$)/,'')
+       .replace(/^G[A-ZÁÉÍÓÚ]{2,}(\s+|$)/,'')
+       .replace(/^(sub)?gerencia\s+[^\s]+\s+/i,function(m){return /^(sub)?gerencia\s+(de\s+)?[a-záéíóúñ]+\s+$/i.test(m)?'':m;})
+       .trim();
+  }while(t!==antes&&t);
+  t=t.replace(/\s+(v\d+|final|vf|\d{4})$/i,'').trim();
   return t?t.charAt(0).toUpperCase()+t.slice(1):'';
 }
+function cargoDeArchivo(n){return limpiarCargo(String(n||'').replace(/\.[a-z0-9]{1,5}$/i,''));}
 function buscarCargo(cargo){var k=nz(cargo);return k?S.items.filter(function(c){return nz(c.cargo)===k;})[0]||null:null;}
 function bAcc(it){return it.big?'<span class="pill bad">Pesa más de '+MAX_MB+' MB</span>':!it.cargo.trim()?'<span class="pill warn">Falta el cargo</span>':it.match?'<span class="pill mat">Reemplaza documento</span>':'<span class="pill ok">Nuevo descriptor</span>';}
 function openBulk(files){
@@ -260,6 +282,17 @@ async function runBulk(){
   render();ferr('Se guardaron '+ok+'. No se pudieron subir: '+mal.join(' · '));if(btn){btn.disabled=false;btn.textContent='Cerrar';btn.setAttribute('data-done','1');}
 }
 
+async function limpiarNombres(btn){
+  var sucios=S.items.filter(function(c){var l=limpiarCargo(c.cargo);return l&&l!==c.cargo;});if(!sucios.length)return;
+  if(btn){btn.disabled=true;}
+  var ok=0;
+  for(var i=0;i<sucios.length;i++){
+    var c=sucios[i];if(btn)btn.textContent='Limpiando '+(i+1)+' de '+sucios.length+'…';
+    try{var r=fromRow(chk(await sb.from(TABLE).update({cargo:limpiarCargo(c.cargo)}).eq('id',c.id).select().single()));S.items=S.items.map(function(x){return x.id===r.id?r:x;});ok++;}catch(e){}
+  }
+  toast(ok+(ok===1?' nombre corregido':' nombres corregidos'));render();
+}
+
 /* ---------- Arrastrar y soltar carpetas o archivos ---------- */
 function leerEntrada(entry,out){
   return new Promise(function(res){
@@ -304,8 +337,12 @@ document.addEventListener('click',function(e){
   if(act==='dc-doc'){e.preventDefault();openDoc(b.getAttribute('data-path'));return;}
   if(act==='dc-del'){del();return;}
   if(act==='dc-reload'){load();return;}
+  if(act==='dc-fix'){limpiarNombres(b);return;}
+  if(act==='dc-all'){var abrir=!Object.keys(S.open).length||!document.querySelectorAll('.dcg:not([open])').length?false:true;
+    document.querySelectorAll('.dcg').forEach(function(d){S.open[d.getAttribute('data-g')]=abrir;});render();return;}
   if(act==='dc-fe'){S.fe=b.getAttribute('data-v');render();return;}
 });
+document.addEventListener('toggle',function(e){var d=e.target;if(d&&d.classList&&d.classList.contains('dcg')&&!S.q){S.open[d.getAttribute('data-g')]=d.open;var t=document.querySelector('[data-act="dc-all"]');if(t)t.textContent=document.querySelectorAll('.dcg:not([open])').length?'Expandir todo':'Contraer todo';}},true);
 document.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('dc-drop')){e.preventDefault();e.target.click();}});
 document.addEventListener('submit',function(e){
   if(e.target&&e.target.id==='dcsheet'){e.preventDefault();e.stopPropagation();save();}
