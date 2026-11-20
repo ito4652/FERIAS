@@ -837,6 +837,20 @@ function cuBudget(st,dark){
     '<div class="cu-bar'+(st.pres!==null&&st.gas>st.pres?' over':'')+'" role="img" aria-label="Gastado '+pct+'%"><i style="width:'+pct+'%"></i></div>'+
     '<span class="cu-bud-sub">Gastado '+money(st.gas)+(st.pres!==null?' · '+(st.gas>st.pres?'excedido en '+money(st.gas-st.pres):'quedan '+money(st.pres-st.gas)):'')+'</span></div>';
 }
+/* Foto del cumpleañero: se toma de la pestaña Equipo, buscando por nombre (completo o nombre + un apellido). */
+function fotoEquipo(nombre){
+  var a=nz(nombre).split(' ').filter(Boolean);if(!a.length)return null;
+  var hit=state.equipo.filter(function(p){return nz(p.nombre)===a.join(' ');})[0];
+  if(!hit)hit=state.equipo.filter(function(p){
+    var b=nz(p.nombre).split(' ').filter(Boolean);
+    return b[0]===a[0]&&a.slice(1).some(function(x){return x.length>2&&b.slice(1).indexOf(x)>-1;});
+  })[0];
+  return hit&&hit.foto?hit.foto:null;
+}
+function cuFoto(c,cls){
+  var f=fotoEquipo(c.nombre);
+  return '<span class="cu-ph '+(cls||'')+'">'+(f?'<img src="'+esc(f)+'" alt="Foto de '+esc(c.nombre)+'" loading="lazy">':avatar(c.nombre,'lg'))+'</span>';
+}
 function cuWish(c){
   var L=Array.isArray(c.deseos)?c.deseos:[];if(!L.length)return '';
   return '<div class="cu-wish"><b>'+ic('gift',15)+'Wish list</b><div class="cu-wl">'+L.map(function(x){
@@ -852,7 +866,7 @@ function cuHero(c){
   var kick='Próximo cumpleaños · '+when+(dd===0?'':d?longDay.format(d):'');
   var acts=(d?'<button class="cu-ib" data-act="cal" data-id="'+esc(c.id)+'" aria-label="Agregar al calendario" title="Agregar al calendario">'+ic('calplus',18)+'</button>':'')+
     (ADMIN?'<button class="cu-ib" data-act="edit" data-kind="cumple" data-id="'+esc(c.id)+'" aria-label="Editar cumpleaños de '+esc(c.nombre)+'" title="Editar">'+ic('pencil',17)+'</button>':'');
-  return '<section class="hx-hero cu-hero" aria-labelledby="cu-next"><div class="cu-hero-top"><div class="cu-hmain">'+
+  return '<section class="hx-hero cu-hero" aria-labelledby="cu-next"><div class="cu-hero-top">'+cuFoto(c,'big')+'<div class="cu-hmain">'+
     '<div class="hx-kicker cu-kicker">'+esc(cap(kick))+'</div><h2 class="cu-htitle" id="cu-next">'+esc(c.nombre)+'</h2>'+
     (rs.length?'<div class="cu-org">'+rs.map(function(r){return '<span class="av" style="--h:'+hue(r)+'" aria-hidden="true">'+esc(initials(r))+'</span>';}).join('')+'<span>Organiza '+esc(rs.join(' y '))+'</span></div>':'<div class="cu-org"><span>Sin responsable</span></div>')+
     '</div><div class="cu-hside">'+cuBudget(st,true)+(acts?'<div class="cu-hacts">'+acts+'</div>':'')+'</div></div>'+
@@ -863,7 +877,7 @@ function cuRow(c,past){
   var st=cumpleStats(c),d=parseDate(c.fecha),dd=daysUntil(c.fecha),rs=respList(c),key='cu:'+c.id;
   var sub=[d?cap(new Intl.DateTimeFormat('es-CL',{weekday:'long'}).format(d)):'',rs.length?'organiza '+rs.join(' y '):'',st.pres!==null?money(st.pres):'',st.total?(st.total-st.pend)+' de '+st.total+' compras':''].filter(Boolean).join(' · ');
   return '<details class="cu-row'+(past?' past':'')+'" data-note="'+esc(key)+'"'+(state.openNotes[key]?' open':'')+'><summary>'+
-    '<span class="cu-date"><b>'+(d?d.getDate():'—')+'</b><span>'+(d?esc(monFmt.format(d).replace('.','')):'')+'</span></span>'+
+    '<span class="cu-date"><b>'+(d?d.getDate():'—')+'</b><span>'+(d?esc(monFmt.format(d).replace('.','')):'')+'</span></span>'+cuFoto(c,'sm')+
     '<span class="cu-main"><span class="cu-name">'+esc(c.nombre)+'</span><span class="cu-sub">'+esc(sub)+'</span></span>'+
     '<span class="cu-right"><span class="pill '+(past?'mat':dd<=7?'warn':'mat')+'">'+esc(past?'Realizado':dayLabel(dd))+'</span><span class="cu-chev" aria-hidden="true">'+ic('chev',18)+'</span></span></summary>'+
     '<div class="cu-body">'+cuBudget(st,false)+'<div class="cu-buyhead"><b>Compras</b></div>'+cuPills(c,false)+cuWish(c)+
