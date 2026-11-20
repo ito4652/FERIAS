@@ -979,3 +979,7 @@ html.locked .gate{display:block}
 .btn.dc-open{display:inline-flex;align-items:center;gap:6px;min-height:40px}
 .dc-nodoc{font-size:13px;color:var(--muted);font-style:italic}
 @media (max-width:760px){.dc-grid{grid-template-columns:1fr}}
+.dcb-file{display:inline-flex;align-items:center;gap:6px;max-width:260px}
+.dcb-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.itable input[type=text]{min-height:38px;padding:6px 10px;font-size:13.5px;width:100%;min-width:180px}
+.cu-tools .btn{display:inline-flex;align-items:center;gap:6px}
